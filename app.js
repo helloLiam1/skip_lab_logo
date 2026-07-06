@@ -15,7 +15,9 @@ const state = {
   fontSize: 28,
   showGrid: true,
   labelOffset: 25,
-  activeDragId: null
+  activeDragId: null,
+  animationIntervalMs: 1000,
+  debugMode: false
 };
 
 // SVG Canvas dimensions (fixed internal coordinates)
@@ -35,6 +37,9 @@ const btnUpdateText = document.getElementById('btn-update-text');
 const selectPathMode = document.getElementById('select-path-mode');
 const btnShufflePath = document.getElementById('btn-shuffle-path');
 const btnAnimatePath = document.getElementById('btn-animate-path');
+const btnToggleDebug = document.getElementById('btn-toggle-debug');
+const rangeAnimationSpeed = document.getElementById('range-animation-speed');
+const valAnimationSpeed = document.getElementById('val-animation-speed');
 let animationInterval = null;
 const rangeStrokeWidth = document.getElementById('range-stroke-width');
 const valStrokeWidth = document.getElementById('val-stroke-width');
@@ -360,6 +365,25 @@ function render() {
     visibleCircle.setAttribute("r", state.dotRadius);
     visibleCircle.setAttribute("class", "node-handle");
     
+    // Gradient of red from darkest to lightest if debugMode is active
+    let fillOverride = "";
+    if (state.debugMode && routedPoints.length > 0) {
+      const pathIndex = routedPoints.findIndex(rp => rp.id === p.id);
+      if (pathIndex !== -1) {
+        const t = routedPoints.length > 1 ? pathIndex / (routedPoints.length - 1) : 0;
+        const lightness = 30 + t * 55; // 30% is dark red, 85% is light red
+        fillOverride = `hsl(0, 100%, ${lightness}%)`;
+      }
+    }
+    
+    if (fillOverride) {
+      visibleCircle.setAttribute("fill", fillOverride);
+      visibleCircle.style.fill = fillOverride;
+    } else {
+      visibleCircle.removeAttribute("fill");
+      visibleCircle.style.fill = "";
+    }
+    
     nodeGroup.appendChild(hitArea);
     nodeGroup.appendChild(visibleCircle);
     dotsGroup.appendChild(nodeGroup);
@@ -528,13 +552,20 @@ function updateVariationsGallery() {
     miniSvg.appendChild(mPath);
     
     // Render points
-    variantPoints.forEach(p => {
+    variantPoints.forEach((p, idx) => {
       const pos = gridToPixel(p.x, p.y);
       const mCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
       mCircle.setAttribute("cx", pos.x);
       mCircle.setAttribute("cy", pos.y);
       mCircle.setAttribute("r", "10");
-      mCircle.setAttribute("fill", "var(--accent)");
+      
+      let fillVal = "var(--accent)";
+      if (state.debugMode && variantPoints.length > 0) {
+        const t = variantPoints.length > 1 ? idx / (variantPoints.length - 1) : 0;
+        const lightness = 30 + t * 55;
+        fillVal = `hsl(0, 100%, ${lightness}%)`;
+      }
+      mCircle.setAttribute("fill", fillVal);
       miniSvg.appendChild(mCircle);
     });
     
@@ -615,8 +646,10 @@ function generateStandaloneSVG() {
   
   const handles = clone.querySelectorAll('.node-handle');
   handles.forEach(h => {
+    // Check if the element already has a custom fill (like red/blue debug highlights)
+    const customFill = h.getAttribute('fill') || h.style.fill;
     h.removeAttribute('class');
-    h.setAttribute('fill', accent);
+    h.setAttribute('fill', customFill || accent);
     h.setAttribute('r', state.dotRadius);
   });
   
@@ -735,7 +768,7 @@ function startAnimation() {
   
   animationInterval = setInterval(() => {
     shufflePoints();
-  }, 1000);
+  }, state.animationIntervalMs);
 }
 
 function stopAnimation() {
@@ -798,6 +831,28 @@ function setupEventListeners() {
 
   // Animation button
   btnAnimatePath.addEventListener('click', toggleAnimation);
+  
+  // Debug mode button
+  btnToggleDebug.addEventListener('click', () => {
+    state.debugMode = !state.debugMode;
+    btnToggleDebug.classList.toggle('active', state.debugMode);
+    render();
+    updateVariationsGallery();
+  });
+  
+  // Animation speed slider
+  rangeAnimationSpeed.addEventListener('input', (e) => {
+    const sec = parseFloat(e.target.value);
+    valAnimationSpeed.textContent = `${sec.toFixed(1)}s`;
+    state.animationIntervalMs = sec * 1000;
+    
+    if (animationInterval) {
+      clearInterval(animationInterval);
+      animationInterval = setInterval(() => {
+        shufflePoints();
+      }, state.animationIntervalMs);
+    }
+  });
   
   // Stroke thickness slider
   rangeStrokeWidth.addEventListener('input', (e) => {
