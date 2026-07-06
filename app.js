@@ -40,6 +40,7 @@ const btnUpdateText = document.getElementById('btn-update-text');
 const selectPathMode = document.getElementById('select-path-mode');
 const btnShufflePath = document.getElementById('btn-shuffle-path');
 const btnAnimatePath = document.getElementById('btn-animate-path');
+const chkAnimateDraw = document.getElementById('chk-animate-draw');
 const btnToggleText = document.getElementById('btn-toggle-text');
 const btnToggleDebug = document.getElementById('btn-toggle-debug');
 const rangeAnimationSpeed = document.getElementById('range-animation-speed');
@@ -1175,9 +1176,16 @@ function runNextAnimationCycle() {
   triggerGenerativeStepDataOnly();
   updateVariationsGallery();
 
-  startPathAnimation(() => {
-    runNextAnimationCycle();
-  });
+  if (chkAnimateDraw && chkAnimateDraw.checked) {
+    // Animate the path drawing, then loop
+    startPathAnimation(() => {
+      runNextAnimationCycle();
+    });
+  } else {
+    // Instantly render the new path, then schedule next cycle after the interval
+    render();
+    setTimeout(runNextAnimationCycle, state.animationIntervalMs);
+  }
 }
 
 function triggerGenerativeStepDataOnly() {
@@ -1317,12 +1325,16 @@ function setupEventListeners() {
     render();
   });
 
-  // Shuffle path points sequence (with drawing animation)
+  // Shuffle path points sequence (animated or instant depending on checkbox)
   btnShufflePath.addEventListener('click', () => {
     stopAnimation();
     triggerGenerativeStepDataOnly();
     updateVariationsGallery();
-    startPathAnimation();
+    if (chkAnimateDraw && chkAnimateDraw.checked) {
+      startPathAnimation();
+    } else {
+      render();
+    }
   });
 
   // Animation button
