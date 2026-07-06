@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SKIP LAB - Generative Logo Designer</title>
+  <!-- Google Fonts for premium typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesque:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <!-- Lucide Icons for premium visual icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo-area">
+        <div class="mini-logo">
+          <svg width="24" height="24" viewBox="0 0 8 8">
+            <line x1="1" y1="4" x2="2" y2="5" stroke="currentColor" stroke-width="0.8" />
+            <line x1="2" y1="5" x2="3" y2="4" stroke="currentColor" stroke-width="0.8" />
+            <circle cx="1" cy="4" r="0.6" fill="currentColor" />
+            <circle cx="2" cy="5" r="0.6" fill="currentColor" />
+            <circle cx="3" cy="4" r="0.6" fill="currentColor" />
+          </svg>
+        </div>
+        <h1>SKIP LAB <span class="badge">Generative</span></h1>
+      </div>
+      <p class="subtitle">An interactive system for grid-based continuous-line identities.</p>
+    </header>
+
+    <!-- Main Workspace -->
+    <div class="workspace">
+      <!-- Left side: Interactive Canvas -->
+      <section class="canvas-section">
+        <div class="canvas-card">
+          <div class="canvas-header">
+            <span class="status-indicator"><i data-lucide="activity"></i> Active Canvas</span>
+            <div class="canvas-actions">
+              <button id="btn-toggle-grid" class="icon-btn active" title="Toggle Grid"><i data-lucide="grid"></i></button>
+              <button id="btn-reset-points" class="icon-btn" title="Reset Grid Layout"><i data-lucide="refresh-cw"></i></button>
+            </div>
+          </div>
+          
+          <div class="svg-container">
+            <svg id="logo-svg" viewBox="0 0 800 800" width="100%" height="100%">
+              <!-- Grid background -->
+              <g id="grid-lines"></g>
+              <!-- Connection Line Path -->
+              <path id="logo-path" class="logo-path" />
+              <!-- Interaction dots -->
+              <g id="logo-dots"></g>
+              <!-- Text Labels -->
+              <g id="logo-labels"></g>
+            </svg>
+          </div>
+          
+          <div class="canvas-footer">
+            <div class="coord-info">
+              <i data-lucide="mouse-pointer"></i>
+              <span id="coord-display">Hover coordinates or drag nodes to position</span>
+            </div>
+            <div class="path-length-info">
+              <i data-lucide="move"></i>
+              <span>Path: <strong id="path-info">0</strong> px</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right side: Control Panel -->
+      <aside class="sidebar-section">
+        <!-- Section 1: Logo Text content -->
+        <div class="control-card">
+          <h2 class="card-title"><i data-lucide="type"></i> Text & Identity</h2>
+          <div class="control-group">
+            <label for="input-text">Logo Text</label>
+            <div class="input-with-button">
+              <input type="text" id="input-text" value="SKIP LAB" placeholder="Type letters..." maxlength="12">
+              <button id="btn-update-text" class="btn-primary">Apply</button>
+            </div>
+            <p class="field-hint">Uppercase letters and numbers are supported. Spaces create empty nodes.</p>
+          </div>
+        </div>
+
+        <!-- Section 2: Path Generation & Variation -->
+        <div class="control-card">
+          <h2 class="card-title"><i data-lucide="git-branch"></i> Generative Path</h2>
+          <div class="control-group">
+            <label for="select-path-mode">Routing Algorithm</label>
+            <select id="select-path-mode">
+              <option value="zigzag" selected>Interleaved Column Zig-Zag</option>
+              <option value="tsp">Traveling Salesperson (Shortest Path)</option>
+              <option value="ltr">Left to Right (Spatial Sorted)</option>
+              <option value="random">Random Permutation (Glyphic)</option>
+              <option value="entry">Sequence Order (Order of Entry)</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <div class="export-actions">
+              <button id="btn-shuffle-path" class="btn-outline flex-1">
+                <i data-lucide="shuffle"></i> Shuffle
+              </button>
+              <button id="btn-animate-path" class="btn-outline flex-1">
+                <i data-lucide="play"></i> Animate
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 3: Visual Style Controls -->
+        <div class="control-card">
+          <h2 class="card-title"><i data-lucide="sliders"></i> Aesthetics</h2>
+
+
+          <div class="control-group">
+            <div class="slider-header">
+              <label for="range-stroke-width">Line Thickness</label>
+              <span id="val-stroke-width">4px</span>
+            </div>
+            <input type="range" id="range-stroke-width" min="1" max="16" step="0.5" value="4">
+          </div>
+
+          <div class="control-group">
+            <div class="slider-header">
+              <label for="range-dot-radius">Node Point Size</label>
+              <span id="val-dot-radius">8px</span>
+            </div>
+            <input type="range" id="range-dot-radius" min="2" max="24" step="1" value="8">
+          </div>
+
+          <div class="control-group">
+            <label for="select-font">Typography Font</label>
+            <select id="select-font">
+              <option value="'Outfit', sans-serif" selected>Outfit</option>
+              <option value="'Space Grotesque', sans-serif">Space Grotesque</option>
+              <option value="'Inter', sans-serif">Inter</option>
+              <option value="'Fira Code', monospace">Fira Code (Monospace)</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <div class="slider-header">
+              <label for="range-font-size">Font Size</label>
+              <span id="val-font-size">28px</span>
+            </div>
+            <input type="range" id="range-font-size" min="12" max="64" step="1" value="28">
+          </div>
+
+          <div class="control-group">
+            <label for="select-grid-size">Grid Subdivision</label>
+            <select id="select-grid-size">
+              <option value="6">6 x 6</option>
+              <option value="8" selected>8 x 8 (Original)</option>
+              <option value="10">10 x 10</option>
+              <option value="12">12 x 12</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Section 4: Export Tools -->
+        <div class="control-card">
+          <h2 class="card-title"><i data-lucide="download"></i> Export Options</h2>
+          <div class="export-actions">
+            <button id="btn-export-svg" class="btn-primary flex-1">
+              <i data-lucide="file-code"></i> Export SVG
+            </button>
+            <button id="btn-export-png" class="btn-secondary flex-1">
+              <i data-lucide="image"></i> Export PNG
+            </button>
+          </div>
+          <button id="btn-copy-svg" class="btn-outline w-100 mt-2">
+            <i data-lucide="copy"></i> Copy SVG Vector Code
+          </button>
+        </div>
+      </aside>
+    </div>
+
+    <!-- Bottom Panel: Variations Gallery -->
+    <section class="gallery-section">
+      <div class="gallery-header">
+        <h2><i data-lucide="layers"></i> Generated Variations</h2>
+        <span class="gallery-subtitle">Click a variation to apply its layout / routing instantly</span>
+      </div>
+      <div id="variations-grid" class="variations-grid">
+        <!-- Rendered dynamically in app.js -->
+      </div>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    // Initialize Lucide Icons
+    lucide.createIcons();
+  </script>
+</body>
+</html>
