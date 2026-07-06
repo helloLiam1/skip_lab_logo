@@ -100,6 +100,19 @@
             </select>
           </div>
           <div class="control-group">
+            <label>Generative Target</label>
+            <div style="display: flex; gap: 1.25rem; margin-top: 0.35rem;">
+              <label class="radio-label">
+                <input type="radio" name="gen-target" value="path" checked>
+                <span>Shuffle Path</span>
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="gen-target" value="position">
+                <span>Random Positions</span>
+              </label>
+            </div>
+          </div>
+          <div class="control-group">
             <div class="export-actions">
               <button id="btn-shuffle-path" class="btn-outline flex-1">
                 <i data-lucide="shuffle"></i> Shuffle

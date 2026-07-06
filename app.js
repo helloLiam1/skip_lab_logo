@@ -8,6 +8,7 @@ const state = {
   gridSize: 8,
   text: "SKIP LAB",
   points: [],          // Active list of points: { id, char, x, y, labelPos }
+  pathOrder: [],       // Ordered list of point IDs defining the path
   pathMode: 'zigzag',  // zigzag, tsp, ltr, random, entry
   strokeWidth: 4,
   dotRadius: 8,
@@ -17,7 +18,8 @@ const state = {
   labelOffset: 25,
   activeDragId: null,
   animationIntervalMs: 1000,
-  debugMode: false
+  debugMode: false,
+  genTarget: 'path'    // path (permutations) or position (dot coordinate randomizer)
 };
 
 // SVG Canvas dimensions (fixed internal coordinates)
@@ -40,6 +42,7 @@ const btnAnimatePath = document.getElementById('btn-animate-path');
 const btnToggleDebug = document.getElementById('btn-toggle-debug');
 const rangeAnimationSpeed = document.getElementById('range-animation-speed');
 const valAnimationSpeed = document.getElementById('val-animation-speed');
+const radioGenTargets = document.getElementsByName('gen-target');
 let animationInterval = null;
 const rangeStrokeWidth = document.getElementById('range-stroke-width');
 const valStrokeWidth = document.getElementById('val-stroke-width');
@@ -64,6 +67,7 @@ const btnCopySvg = document.getElementById('btn-copy-svg');
 function init() {
   setupEventListeners();
   resetPointsToDefault();
+  recomputePathOrder(state.points, state.pathMode);
   render();
   updateVariationsGallery();
 }
@@ -86,9 +90,9 @@ function pixelToGrid(pixelX, pixelY, customGridSize = state.gridSize) {
   let gridX = Math.round((pixelX - CANVAS_PADDING) / step);
   let gridY = Math.round((pixelY - CANVAS_PADDING) / step);
   
-  // Clamp to grid dimensions
-  gridX = Math.max(0, Math.min(customGridSize, gridX));
-  gridY = Math.max(0, Math.min(customGridSize, gridY));
+  // Clamp to grid dimensions (excluding outer edges)
+  gridX = Math.max(1, Math.min(customGridSize - 1, gridX));
+  gridY = Math.max(1, Math.min(customGridSize - 1, gridY));
   
   return { gridX, gridY };
 }
@@ -115,14 +119,14 @@ function distributeTextPoints(text, gridSize) {
     // Word 1 columns: 1, 3, 5, 7... labels are always ABOVE
     for (let i = 0; i < w1.length; i++) {
       const col = 1 + i * 2;
-      if (col <= gridSize) {
+      if (col < gridSize) {
         points.push({ id: id++, char: w1[i], x: col, y: rowUpper, labelPos: 'above' });
       }
     }
-    // Word 2 columns: 2, 4, 6, 8... labels are always BELOW
+    // Word 2 columns: 2, 4, 6... labels are always BELOW (excludes edge column 8)
     for (let i = 0; i < w2.length; i++) {
       const col = 2 + i * 2;
-      if (col <= gridSize) {
+      if (col < gridSize) {
         points.push({ id: id++, char: w2[i], x: col, y: rowLower, labelPos: 'below' });
       }
     }
@@ -132,7 +136,7 @@ function distributeTextPoints(text, gridSize) {
     let id = 0;
     for (let i = 0; i < word.length; i++) {
       const col = 1 + i;
-      if (col <= gridSize) {
+      if (col < gridSize) {
         const isAbove = (i % 2 === 0);
         points.push({
           id: id++,
@@ -147,38 +151,167 @@ function distributeTextPoints(text, gridSize) {
   return points;
 }
 
-// Sort points based on routing algorithm
-function getRoutedPoints(pointsArray, mode = state.pathMode) {
+// --- Self-Avoiding Path and Point-Collision Checking Helpers ---
+
+// Distance from point (px, py) to line segment (x1, y1) -> (x2, y2)
+function pointToSegmentDistance(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const l2 = dx * dx + dy * dy;
+  if (l2 === 0) return Math.hypot(px - x1, py - y1);
+  
+  let t = ((px - x1) * dx + (py - y1) * dy) / l2;
+  t = Math.max(0, Math.min(1, t)); // clamp to segment
+  
+  const projX = x1 + t * dx;
+  const projY = y1 + t * dy;
+  return Math.hypot(px - projX, py - projY);
+}
+
+// Checks if the line segment p1-p2 passes through/crosses any other dot in the grid
+function lineCrossesAnyDot(p1, p2, allPoints) {
+  for (const p of allPoints) {
+    if (p.id === p1.id || p.id === p2.id) continue;
+    // 0.2 grid units is the threshold (close enough to count as passing through the dot)
+    const dist = pointToSegmentDistance(p.x, p.y, p1.x, p1.y, p2.x, p2.y);
+    if (dist < 0.2) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Checks if two line segments p1-p2 and p3-p4 cross each other (self-intersection check)
+function segmentsIntersect(p1, p2, p3, p4) {
+  // If segments share a common vertex, they are connected at an endpoint but don't cross
+  if (p1.id === p3.id || p1.id === p4.id || p2.id === p3.id || p2.id === p4.id) {
+    return false;
+  }
+  
+  const ccw = (A, B, C) => (C.y - A.y) * (B.x - A.x) > (B.y - A.y) * (C.x - A.x);
+  return ccw(p1, p3, p4) !== ccw(p2, p3, p4) && ccw(p1, p2, p3) !== ccw(p1, p2, p4);
+}
+
+// Validates if connecting p1 -> p2 is self-avoiding and does not cross other dots
+function isNewSegmentValid(p1, p2, pathSoFar, allPoints) {
+  // Ensure the line does not pass through another dot (prevents parallel/collinear overlaps)
+  return !lineCrossesAnyDot(p1, p2, allPoints);
+}
+
+// Backtracking DFS to find a random continuous, self-avoiding path that visits all dots
+function generateRandomValidPath(points) {
+  if (points.length <= 1) return [...points];
+  
+  const unvisited = new Set(points.map(p => p.id));
+  const path = [];
+  
+  // Try starting from random points
+  const startPoints = [...points].sort(() => Math.random() - 0.5);
+  
+  function dfs(current) {
+    path.push(current);
+    unvisited.delete(current.id);
+    
+    if (unvisited.size === 0) {
+      return true; // Complete path found!
+    }
+    
+    // Sort next candidates randomly
+    const candidates = points.filter(p => unvisited.has(p.id))
+                              .sort(() => Math.random() - 0.5);
+    
+    for (const next of candidates) {
+      if (isNewSegmentValid(current, next, path, points)) {
+        if (dfs(next)) return true;
+      }
+    }
+    
+    // Backtrack
+    path.pop();
+    unvisited.add(current.id);
+    return false;
+  }
+  
+  for (const start of startPoints) {
+    if (dfs(start)) {
+      return path;
+    }
+  }
+  
+  // Fallback: If no self-avoiding tour exists, return spatial-sorted zigzag
+  return [...points].sort((a, b) => {
+    if (a.x !== b.x) return a.x - b.x;
+    return a.y - b.y;
+  });
+}
+
+// Get ordered points based on routing algorithm
+function getRoutedPoints(pointsArray, mode = state.pathMode, updateState = true) {
   if (pointsArray.length <= 1) return [...pointsArray];
 
+  let order = [];
+  if (updateState) {
+    if (state.pathOrder.length !== pointsArray.length) {
+      recomputePathOrder(pointsArray, mode);
+    }
+    order = state.pathOrder;
+  } else {
+    order = getPathOrderForMode(pointsArray, mode);
+  }
+
+  const pointMap = new Map(pointsArray.map(p => [p.id, p]));
+  const routed = [];
+  order.forEach(id => {
+    if (pointMap.has(id)) {
+      routed.push(pointMap.get(id));
+    }
+  });
+  
+  // Guard: if somehow size mismatch, append missing points
+  if (routed.length !== pointsArray.length) {
+    pointsArray.forEach(p => {
+      if (!routed.includes(p)) routed.push(p);
+    });
+  }
+  
+  return routed;
+}
+
+function getPathOrderForMode(pointsArray, mode) {
+  let orderedPoints = [];
   switch (mode) {
     case 'zigzag':
-      // Sort primarily by X. If X matches, sort by Y to form a vertical interleave
-      return [...pointsArray].sort((a, b) => {
+      orderedPoints = [...pointsArray].sort((a, b) => {
         if (a.x !== b.x) return a.x - b.x;
         return a.y - b.y;
       });
+      break;
       
     case 'ltr':
-      // Sorted directly from left to right (by x, then y)
-      return [...pointsArray].sort((a, b) => {
+      orderedPoints = [...pointsArray].sort((a, b) => {
         if (a.x !== b.x) return a.x - b.x;
         return a.y - b.y;
       });
+      break;
       
     case 'tsp':
-      // Traveling Salesperson Problem (Find shortest continuous tour visiting all nodes)
-      return solveTSP(pointsArray);
+      orderedPoints = solveTSP(pointsArray);
+      break;
       
     case 'random':
-      // Returns points in state order (which gets shuffled via shuffle button)
-      return [...pointsArray];
+      orderedPoints = generateRandomValidPath(pointsArray);
+      break;
       
     case 'entry':
     default:
-      // Sort by the original order they were inputted (ID sequence)
-      return [...pointsArray].sort((a, b) => a.id - b.id);
+      orderedPoints = [...pointsArray].sort((a, b) => a.id - b.id);
+      break;
   }
+  return orderedPoints.map(p => p.id);
+}
+
+function recomputePathOrder(pointsArray, mode = state.pathMode) {
+  state.pathOrder = getPathOrderForMode(pointsArray, mode);
 }
 
 // traveling salesperson solver (Brute-force for <= 8 points, Greedy Nearest Neighbor for > 8 points)
@@ -526,15 +659,9 @@ function updateVariationsGallery() {
     // Calculate routing path for this variation
     let variantPoints = [];
     if (v.mode === 'random_a' || v.mode === 'random_b') {
-      variantPoints = [...state.points];
-      // Generate a deterministic distinct shuffle for card preview
-      const offset = v.mode === 'random_a' ? 2 : 4;
-      for (let i = variantPoints.length - 1; i > 0; i--) {
-        const j = (i + offset) % (i + 1);
-        [variantPoints[i], variantPoints[j]] = [variantPoints[j], variantPoints[i]];
-      }
+      variantPoints = generateRandomValidPath(state.points);
     } else {
-      variantPoints = getRoutedPoints(state.points, v.mode);
+      variantPoints = getRoutedPoints(state.points, v.mode, false);
     }
     
     const pixelPoints = variantPoints.map(p => gridToPixel(p.x, p.y));
@@ -582,12 +709,13 @@ function updateVariationsGallery() {
     card.addEventListener('click', () => {
       stopAnimation();
       if (v.mode === 'random_a' || v.mode === 'random_b') {
-        state.points = variantPoints; // Load this specific permutation
+        state.pathOrder = variantPoints.map(p => p.id);
         state.pathMode = 'random';
         selectPathMode.value = 'random';
       } else {
         state.pathMode = v.mode;
         selectPathMode.value = v.mode;
+        recomputePathOrder(state.points, v.mode);
       }
       
       render();
@@ -764,10 +892,10 @@ function startAnimation() {
   btnAnimatePath.classList.add('active');
   lucide.createIcons();
   
-  shufflePoints();
+  triggerGenerativeStep();
   
   animationInterval = setInterval(() => {
-    shufflePoints();
+    triggerGenerativeStep();
   }, state.animationIntervalMs);
 }
 
@@ -781,15 +909,69 @@ function stopAnimation() {
   lucide.createIcons();
 }
 
-function shufflePoints() {
-  for (let i = state.points.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [state.points[i], state.points[j]] = [state.points[j], state.points[i]];
+// Action: Randomize positions of dots on the grid (SKIP in rows 0-3, LAB in rows 5-8)
+function randomizeDotPositions() {
+  const skipPoints = state.points.filter(p => p.labelPos === 'above');
+  const labPoints = state.points.filter(p => p.labelPos === 'below');
+  
+  // Fallback division in half if no labelPos grouping exists
+  const mid = Math.ceil(state.points.length / 2);
+  const group1 = skipPoints.length > 0 ? skipPoints : state.points.slice(0, mid);
+  const group2 = labPoints.length > 0 ? labPoints : state.points.slice(mid);
+  
+  const occupied = new Set();
+  
+  // Bound row coordinates dynamically based on grid size
+  const midGrid = state.gridSize / 2;
+  const yUpperMax = Math.floor(midGrid) - 1; // e.g. 3 for grid size 8
+  const yLowerMin = Math.ceil(midGrid) + 1;  // e.g. 5 for grid size 8
+
+  function getUniqueCoord(yMin, yMax) {
+    let attempts = 0;
+    while (attempts < 100) {
+      // Columns: 1 to gridSize - 1
+      const x = Math.floor(Math.random() * (state.gridSize - 1)) + 1;
+      const y = Math.floor(Math.random() * (yMax - yMin + 1)) + yMin;
+      const key = `${x},${y}`;
+      if (!occupied.has(key)) {
+        occupied.add(key);
+        return { x, y };
+      }
+      attempts++;
+    }
+    return { x: Math.floor(Math.random() * (state.gridSize - 1)) + 1, y: yMin };
   }
   
+  group1.forEach(p => {
+    const coords = getUniqueCoord(1, yUpperMax); // Starts at row 1, not 0
+    p.x = coords.x;
+    p.y = coords.y;
+  });
+  
+  group2.forEach(p => {
+    const coords = getUniqueCoord(yLowerMin, state.gridSize - 1); // Ends at gridSize - 1, not gridSize
+    p.x = coords.x;
+    p.y = coords.y;
+  });
+  
+  // Recompute path order based on active mode
+  recomputePathOrder(state.points, state.pathMode);
+  render();
+  updateVariationsGallery();
+}
+
+function triggerGenerativeStep() {
+  if (state.genTarget === 'position') {
+    randomizeDotPositions();
+  } else {
+    shufflePoints();
+  }
+}
+
+function shufflePoints() {
   state.pathMode = 'random';
   selectPathMode.value = 'random';
-  
+  recomputePathOrder(state.points, 'random');
   render();
   updateVariationsGallery();
 }
@@ -803,6 +985,7 @@ function setupEventListeners() {
     if (val.length > 0) {
       state.text = val;
       resetPointsToDefault();
+      recomputePathOrder(state.points, state.pathMode);
       render();
       updateVariationsGallery();
     }
@@ -820,13 +1003,14 @@ function setupEventListeners() {
       stopAnimation();
     }
     state.pathMode = e.target.value;
+    recomputePathOrder(state.points, state.pathMode);
     render();
   });
   
   // Shuffle path points sequence (only makes a visual difference in 'random' mode)
   btnShufflePath.addEventListener('click', () => {
     stopAnimation();
-    shufflePoints();
+    triggerGenerativeStep();
   });
 
   // Animation button
@@ -840,6 +1024,13 @@ function setupEventListeners() {
     updateVariationsGallery();
   });
   
+  // Generative Target Radios
+  radioGenTargets.forEach(radio => {
+    radio.addEventListener('change', (e) => {
+      state.genTarget = e.target.value;
+    });
+  });
+
   // Animation speed slider
   rangeAnimationSpeed.addEventListener('input', (e) => {
     const sec = parseFloat(e.target.value);
@@ -849,7 +1040,7 @@ function setupEventListeners() {
     if (animationInterval) {
       clearInterval(animationInterval);
       animationInterval = setInterval(() => {
-        shufflePoints();
+        triggerGenerativeStep();
       }, state.animationIntervalMs);
     }
   });
@@ -886,6 +1077,7 @@ function setupEventListeners() {
     stopAnimation();
     state.gridSize = parseInt(e.target.value);
     resetPointsToDefault();
+    recomputePathOrder(state.points, state.pathMode);
     render();
     updateVariationsGallery();
   });
@@ -903,6 +1095,7 @@ function setupEventListeners() {
     resetPointsToDefault();
     state.pathMode = 'zigzag';
     selectPathMode.value = 'zigzag';
+    recomputePathOrder(state.points, 'zigzag');
     render();
     updateVariationsGallery();
   });
