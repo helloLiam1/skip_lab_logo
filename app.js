@@ -65,6 +65,9 @@ const btnExportSvg = document.getElementById('btn-export-svg');
 const btnExportPng = document.getElementById('btn-export-png');
 const btnCopySvg = document.getElementById('btn-copy-svg');
 
+// Global variable controlling the coordinate dot scaling intensity (0.3 = 30% scale increase)
+let dotScaleAmount = 0.08; // scaling of the dot
+
 // Init application
 function init() {
   setupEventListeners();
@@ -88,14 +91,14 @@ function gridToPixel(gridX, gridY, customGridSize = state.gridSize) {
 function pixelToGrid(pixelX, pixelY, customGridSize = state.gridSize) {
   const gridWidth = CANVAS_SIZE - 2 * CANVAS_PADDING;
   const step = gridWidth / customGridSize;
-  
+
   let gridX = Math.round((pixelX - CANVAS_PADDING) / step);
   let gridY = Math.round((pixelY - CANVAS_PADDING) / step);
-  
+
   // Clamp to grid dimensions (excluding outer edges)
   gridX = Math.max(1, Math.min(customGridSize - 1, gridX));
   gridY = Math.max(1, Math.min(customGridSize - 1, gridY));
-  
+
   return { gridX, gridY };
 }
 
@@ -111,12 +114,12 @@ function distributeTextPoints(text, gridSize) {
   const midY = Math.floor(gridSize / 2);
   const rowUpper = midY;
   const rowLower = midY + 1;
-  
+
   if (words.length >= 2) {
     // Interleave Word 1 (odd columns on upper row) and Word 2 (even columns on lower row)
     const w1 = words[0].toUpperCase();
     const w2 = words[1].toUpperCase();
-    
+
     let id = 0;
     // Word 1 columns: 1, 3, 5, 7... labels are always ABOVE
     for (let i = 0; i < w1.length; i++) {
@@ -161,10 +164,10 @@ function pointToSegmentDistance(px, py, x1, y1, x2, y2) {
   const dy = y2 - y1;
   const l2 = dx * dx + dy * dy;
   if (l2 === 0) return Math.hypot(px - x1, py - y1);
-  
+
   let t = ((px - x1) * dx + (py - y1) * dy) / l2;
   t = Math.max(0, Math.min(1, t)); // clamp to segment
-  
+
   const projX = x1 + t * dx;
   const projY = y1 + t * dy;
   return Math.hypot(px - projX, py - projY);
@@ -189,7 +192,7 @@ function segmentsIntersect(p1, p2, p3, p4) {
   if (p1.id === p3.id || p1.id === p4.id || p2.id === p3.id || p2.id === p4.id) {
     return false;
   }
-  
+
   const ccw = (A, B, C) => (C.y - A.y) * (B.x - A.x) > (B.y - A.y) * (C.x - A.x);
   return ccw(p1, p3, p4) !== ccw(p2, p3, p4) && ccw(p1, p2, p3) !== ccw(p1, p2, p4);
 }
@@ -203,43 +206,43 @@ function isNewSegmentValid(p1, p2, pathSoFar, allPoints) {
 // Backtracking DFS to find a random continuous, self-avoiding path that visits all dots
 function generateRandomValidPath(points) {
   if (points.length <= 1) return [...points];
-  
+
   const unvisited = new Set(points.map(p => p.id));
   const path = [];
-  
+
   // Try starting from random points
   const startPoints = [...points].sort(() => Math.random() - 0.5);
-  
+
   function dfs(current) {
     path.push(current);
     unvisited.delete(current.id);
-    
+
     if (unvisited.size === 0) {
       return true; // Complete path found!
     }
-    
+
     // Sort next candidates randomly
     const candidates = points.filter(p => unvisited.has(p.id))
-                              .sort(() => Math.random() - 0.5);
-    
+      .sort(() => Math.random() - 0.5);
+
     for (const next of candidates) {
       if (isNewSegmentValid(current, next, path, points)) {
         if (dfs(next)) return true;
       }
     }
-    
+
     // Backtrack
     path.pop();
     unvisited.add(current.id);
     return false;
   }
-  
+
   for (const start of startPoints) {
     if (dfs(start)) {
       return path;
     }
   }
-  
+
   // Fallback: If no self-avoiding tour exists, return spatial-sorted zigzag
   return [...points].sort((a, b) => {
     if (a.x !== b.x) return a.x - b.x;
@@ -268,14 +271,14 @@ function getRoutedPoints(pointsArray, mode = state.pathMode, updateState = true)
       routed.push(pointMap.get(id));
     }
   });
-  
+
   // Guard: if somehow size mismatch, append missing points
   if (routed.length !== pointsArray.length) {
     pointsArray.forEach(p => {
       if (!routed.includes(p)) routed.push(p);
     });
   }
-  
+
   return routed;
 }
 
@@ -288,22 +291,22 @@ function getPathOrderForMode(pointsArray, mode) {
         return a.y - b.y;
       });
       break;
-      
+
     case 'ltr':
       orderedPoints = [...pointsArray].sort((a, b) => {
         if (a.x !== b.x) return a.x - b.x;
         return a.y - b.y;
       });
       break;
-      
+
     case 'tsp':
       orderedPoints = solveTSP(pointsArray);
       break;
-      
+
     case 'random':
       orderedPoints = generateRandomValidPath(pointsArray);
       break;
-      
+
     case 'entry':
     default:
       orderedPoints = [...pointsArray].sort((a, b) => a.id - b.id);
@@ -319,19 +322,19 @@ function recomputePathOrder(pointsArray, mode = state.pathMode) {
 // traveling salesperson solver (Brute-force for <= 8 points, Greedy Nearest Neighbor for > 8 points)
 function solveTSP(points) {
   if (points.length <= 2) return [...points];
-  
+
   const getDist = (p1, p2) => Math.hypot(p1.x - p2.x, p1.y - p2.y);
-  
+
   if (points.length > 8) {
     // Greedy approach for performance (Nearest Neighbor)
     const unvisited = [...points];
     const path = [];
-    
+
     // Start at left-most point
     unvisited.sort((a, b) => a.x - b.x);
     let current = unvisited.shift();
     path.push(current);
-    
+
     while (unvisited.length > 0) {
       let nearestIdx = 0;
       let minDist = Infinity;
@@ -350,12 +353,12 @@ function solveTSP(points) {
     // Exact Brute Force search to minimize total path distance
     let bestPath = [];
     let minDistance = Infinity;
-    
+
     function permute(currentPath, remaining) {
       if (remaining.length === 0) {
         let dist = 0;
         for (let i = 0; i < currentPath.length - 1; i++) {
-          dist += getDist(currentPath[i], currentPath[i+1]);
+          dist += getDist(currentPath[i], currentPath[i + 1]);
         }
         if (dist < minDistance) {
           minDistance = dist;
@@ -369,7 +372,7 @@ function solveTSP(points) {
         permute(nextPath, nextRemaining);
       }
     }
-    
+
     permute([], points);
     return bestPath;
   }
@@ -383,7 +386,7 @@ function getLabelPositions(routedPoints, offsetDistance = state.labelOffset) {
     const isAbove = (p.labelPos === 'above');
     const dirX = 0;
     const dirY = isAbove ? -1 : 1;
-    
+
     offsets.push({
       x: currPx.x,
       y: currPx.y + dirY * offsetDistance,
@@ -397,10 +400,10 @@ function getLabelPositions(routedPoints, offsetDistance = state.labelOffset) {
 // Calculate the total pixel length of the drawn path (Straight lines only)
 function calculatePathLength(pixelPoints) {
   if (pixelPoints.length <= 1) return 0;
-  
+
   let length = 0;
   for (let i = 0; i < pixelPoints.length - 1; i++) {
-    length += Math.hypot(pixelPoints[i+1].x - pixelPoints[i].x, pixelPoints[i+1].y - pixelPoints[i].y);
+    length += Math.hypot(pixelPoints[i + 1].x - pixelPoints[i].x, pixelPoints[i + 1].y - pixelPoints[i].y);
   }
   return Math.round(length);
 }
@@ -409,13 +412,13 @@ function calculatePathLength(pixelPoints) {
 function renderGrid() {
   gridGroup.innerHTML = '';
   if (!state.showGrid) return;
-  
+
   const step = (CANVAS_SIZE - 2 * CANVAS_PADDING) / state.gridSize;
-  
+
   // Render grid lines
   for (let i = 0; i <= state.gridSize; i++) {
     const coord = CANVAS_PADDING + i * step;
-    
+
     // Vertical lines
     const vLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
     vLine.setAttribute("x1", coord);
@@ -424,7 +427,7 @@ function renderGrid() {
     vLine.setAttribute("y2", CANVAS_SIZE - CANVAS_PADDING);
     vLine.setAttribute("class", (i === 0 || i === state.gridSize) ? "grid-line-boundary" : "grid-line-main");
     gridGroup.appendChild(vLine);
-    
+
     // Horizontal lines
     const hLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
     hLine.setAttribute("x1", CANVAS_PADDING);
@@ -434,7 +437,7 @@ function renderGrid() {
     hLine.setAttribute("class", (i === 0 || i === state.gridSize) ? "grid-line-boundary" : "grid-line-main");
     gridGroup.appendChild(hLine);
   }
-  
+
   // Render little intersection dots for tech drafting board effect
   for (let x = 0; x <= state.gridSize; x++) {
     for (let y = 0; y <= state.gridSize; y++) {
@@ -450,31 +453,32 @@ function renderGrid() {
 
 // Main Rendering Cycle
 function render() {
+  if (pathAnimation.active) return;
   // 1. Draw Grid
   renderGrid();
-  
+
   // 2. Sort/Route Points
   const routedPoints = getRoutedPoints(state.points);
   const pixelPoints = routedPoints.map(p => gridToPixel(p.x, p.y));
-  
+
   // 3. Render Path (Straight lines only)
   const pathD = pixelPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
   logoPath.setAttribute("d", pathD);
   logoPath.setAttribute("stroke-width", state.strokeWidth);
-  
+
   // 4. Update Path Length display
   const totalLength = calculatePathLength(pixelPoints);
   pathInfoDisplay.textContent = totalLength;
-  
+
   // 5. Render Node Handles (Interactive Dots)
   dotsGroup.innerHTML = '';
   state.points.forEach(p => {
     const pos = gridToPixel(p.x, p.y);
-    
+
     const nodeGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
     nodeGroup.setAttribute("class", "node-group");
     nodeGroup.setAttribute("data-id", p.id);
-    
+
     // Grab events
     nodeGroup.addEventListener('pointerdown', onDragStart);
     nodeGroup.addEventListener('pointerenter', () => {
@@ -485,21 +489,21 @@ function render() {
         coordDisplay.textContent = 'Hover coordinates or drag nodes to position';
       }
     });
-    
+
     // Invisible hover hit area circle for responsive dragging
     const hitArea = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     hitArea.setAttribute("cx", pos.x);
     hitArea.setAttribute("cy", pos.y);
     hitArea.setAttribute("r", Math.max(24, state.dotRadius * 2));
     hitArea.setAttribute("class", "node-hit-area");
-    
+
     // Visible circle point
     const visibleCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     visibleCircle.setAttribute("cx", pos.x);
     visibleCircle.setAttribute("cy", pos.y);
     visibleCircle.setAttribute("r", state.dotRadius);
     visibleCircle.setAttribute("class", "node-handle");
-    
+
     // Gradient of red from darkest to lightest if debugMode is active
     let fillOverride = "";
     if (state.debugMode && routedPoints.length > 0) {
@@ -510,7 +514,7 @@ function render() {
         fillOverride = `hsl(0, 100%, ${lightness}%)`;
       }
     }
-    
+
     if (fillOverride) {
       visibleCircle.setAttribute("fill", fillOverride);
       visibleCircle.style.fill = fillOverride;
@@ -518,17 +522,17 @@ function render() {
       visibleCircle.removeAttribute("fill");
       visibleCircle.style.fill = "";
     }
-    
+
     nodeGroup.appendChild(hitArea);
     nodeGroup.appendChild(visibleCircle);
     dotsGroup.appendChild(nodeGroup);
   });
-  
+
   // 6. Render Labels (Letters - Constant Position relative to Dots)
   labelsGroup.innerHTML = '';
   if (state.showLabels) {
     const labelPositions = getLabelPositions(routedPoints);
-    
+
     routedPoints.forEach((p, i) => {
       const pos = labelPositions[i];
       const textLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
@@ -536,35 +540,37 @@ function render() {
       textLabel.setAttribute("y", pos.y);
       textLabel.setAttribute("class", "node-label");
       textLabel.textContent = p.char;
-      
+
       // Apply styling properties
       textLabel.style.fontFamily = state.fontFamily;
       textLabel.style.fontSize = `${state.fontSize}px`;
-      
+
       // Position UP for 'above', DOWN for 'below'
       let dy = pos.dirY < 0 ? "-0.4em" : "0.9em";
-      
+
       textLabel.setAttribute("text-anchor", "middle");
       textLabel.setAttribute("dy", dy);
-      
+
       labelsGroup.appendChild(textLabel);
     });
   }
-  
+
   // Update variable style properties in DOM
   document.documentElement.style.setProperty('--dot-radius', `${state.dotRadius}px`);
 }
 
 // Drag & Drop Handlers
 function onDragStart(e) {
+  stopAnimation();
+  stopPathAnimation();
   e.preventDefault();
   const group = e.currentTarget;
   state.activeDragId = parseInt(group.getAttribute('data-id'));
-  
+
   // Listen on window so dragging persists when DOM nodes are re-rendered
   window.addEventListener('pointermove', onDragMove);
   window.addEventListener('pointerup', onDragEnd);
-  
+
   // Update state indicators
   document.body.style.cursor = 'grabbing';
 }
@@ -572,23 +578,23 @@ function onDragStart(e) {
 function onDragMove(e) {
   if (state.activeDragId === null) return;
   e.preventDefault();
-  
+
   // Retrieve coordinate relative to SVG container bounding box
   const rect = svgEl.getBoundingClientRect();
-  
+
   // Convert mouse location to 0-800 SVG grid pixels
   const rawX = ((e.clientX - rect.left) / rect.width) * CANVAS_SIZE;
   const rawY = ((e.clientY - rect.top) / rect.height) * CANVAS_SIZE;
-  
+
   // Snap coordinates
   const snapped = pixelToGrid(rawX, rawY);
-  
+
   // Update point position
   const targetPoint = state.points.find(p => p.id === state.activeDragId);
   if (targetPoint) {
     targetPoint.x = snapped.gridX;
     targetPoint.y = snapped.gridY;
-    
+
     coordDisplay.textContent = `Dragging "${targetPoint.char}" to (${snapped.gridX}, ${snapped.gridY})`;
     render();
   }
@@ -597,18 +603,18 @@ function onDragMove(e) {
 function onDragEnd(e) {
   if (state.activeDragId === null) return;
   e.preventDefault();
-  
+
   window.removeEventListener('pointermove', onDragMove);
   window.removeEventListener('pointerup', onDragEnd);
-  
+
   const targetPoint = state.points.find(p => p.id === state.activeDragId);
   if (targetPoint) {
     coordDisplay.textContent = `Dropped "${targetPoint.char}" at Grid intersection (${targetPoint.x}, ${targetPoint.y})`;
   }
-  
+
   state.activeDragId = null;
   document.body.style.cursor = '';
-  
+
   // Update the mini variation gallery based on the new positions
   updateVariationsGallery();
 }
@@ -616,7 +622,7 @@ function onDragEnd(e) {
 // Variations Gallery Generator (Shows different permutations of routing)
 function updateVariationsGallery() {
   variationsGrid.innerHTML = '';
-  
+
   // Define 6 routing variations
   const variants = [
     { name: "Zigzag Route", mode: "zigzag" },
@@ -626,19 +632,19 @@ function updateVariationsGallery() {
     { name: "Alternative Tour A", mode: "random_a" },
     { name: "Alternative Tour B", mode: "random_b" }
   ];
-  
+
   variants.forEach((v) => {
     // Create card container
     const card = document.createElement('div');
     card.setAttribute('class', 'variation-card');
-    
+
     // Create inner SVG
     const svgBox = document.createElement('div');
     svgBox.setAttribute('class', 'variation-canvas-box');
-    
+
     const miniSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     miniSvg.setAttribute("viewBox", "0 0 800 800");
-    
+
     // Render static grid lines on mini SVG
     const mGrid = document.createElementNS("http://www.w3.org/2000/svg", "g");
     const step = (CANVAS_SIZE - 2 * CANVAS_PADDING) / state.gridSize;
@@ -650,7 +656,7 @@ function updateVariationsGallery() {
       vl.setAttribute("stroke", "rgba(0,0,0,0.05)");
       vl.setAttribute("stroke-width", "2");
       mGrid.appendChild(vl);
-      
+
       const hl = document.createElementNS("http://www.w3.org/2000/svg", "line");
       hl.setAttribute("x1", CANVAS_PADDING); hl.setAttribute("y1", coord);
       hl.setAttribute("x2", CANVAS_SIZE - CANVAS_PADDING); hl.setAttribute("y2", coord);
@@ -659,7 +665,7 @@ function updateVariationsGallery() {
       mGrid.appendChild(hl);
     }
     miniSvg.appendChild(mGrid);
-    
+
     // Calculate routing path for this variation
     let variantPoints = [];
     if (v.mode === 'random_a' || v.mode === 'random_b') {
@@ -667,12 +673,12 @@ function updateVariationsGallery() {
     } else {
       variantPoints = getRoutedPoints(state.points, v.mode, false);
     }
-    
+
     const pixelPoints = variantPoints.map(p => gridToPixel(p.x, p.y));
-    
+
     // Render path (straight lines only)
     const pathD = pixelPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-    
+
     const mPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
     mPath.setAttribute("d", pathD);
     mPath.setAttribute("fill", "none");
@@ -681,7 +687,7 @@ function updateVariationsGallery() {
     mPath.setAttribute("stroke-linecap", "round");
     mPath.setAttribute("stroke-linejoin", "round");
     miniSvg.appendChild(mPath);
-    
+
     // Render points
     variantPoints.forEach((p, idx) => {
       const pos = gridToPixel(p.x, p.y);
@@ -689,7 +695,7 @@ function updateVariationsGallery() {
       mCircle.setAttribute("cx", pos.x);
       mCircle.setAttribute("cy", pos.y);
       mCircle.setAttribute("r", "10");
-      
+
       let fillVal = "var(--accent)";
       if (state.debugMode && variantPoints.length > 0) {
         const t = variantPoints.length > 1 ? idx / (variantPoints.length - 1) : 0;
@@ -699,16 +705,16 @@ function updateVariationsGallery() {
       mCircle.setAttribute("fill", fillVal);
       miniSvg.appendChild(mCircle);
     });
-    
+
     svgBox.appendChild(miniSvg);
     card.appendChild(svgBox);
-    
+
     // Label Title
     const title = document.createElement('div');
     title.setAttribute('class', 'variation-title');
     title.textContent = v.name;
     card.appendChild(title);
-    
+
     // Interaction: Load variant details into active state on click
     card.addEventListener('click', () => {
       stopAnimation();
@@ -721,10 +727,10 @@ function updateVariationsGallery() {
         selectPathMode.value = v.mode;
         recomputePathOrder(state.points, v.mode);
       }
-      
+
       render();
     });
-    
+
     variationsGrid.appendChild(card);
   });
 }
@@ -736,18 +742,18 @@ function generateStandaloneSVG() {
   clone.setAttribute('width', '800');
   clone.setAttribute('height', '800');
   clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-  
+
   // Remove interactive hit areas
   const hitAreas = clone.querySelectorAll('.node-hit-area');
   hitAreas.forEach(node => node.remove());
-  
+
   // Resolve theme light values
   const bg = '#ffffff';
   const text = '#18181b';
   const gridLine = 'rgba(24, 24, 27, 0.06)';
   const gridBorder = 'rgba(24, 24, 27, 0.15)';
   const accent = '#18181b';
-  
+
   // Reset path color link
   const path = clone.querySelector('#logo-path');
   if (path) {
@@ -758,7 +764,7 @@ function generateStandaloneSVG() {
     path.setAttribute('stroke-linecap', 'round');
     path.setAttribute('stroke-linejoin', 'round');
   }
-  
+
   // Apply hardcoded styles inline to grid, handles and labels
   const gridLines = clone.querySelectorAll('#grid-lines line');
   gridLines.forEach(line => {
@@ -768,14 +774,14 @@ function generateStandaloneSVG() {
     line.setAttribute('stroke-width', isBoundary ? '1.5' : '1');
     if (!isBoundary) line.setAttribute('stroke-dasharray', '4 4');
   });
-  
+
   const gridDots = clone.querySelectorAll('.grid-intersection-dot');
   gridDots.forEach(dot => {
     dot.removeAttribute('class');
     dot.setAttribute('fill', gridLine);
     dot.setAttribute('r', '2');
   });
-  
+
   const handles = clone.querySelectorAll('.node-handle');
   handles.forEach(h => {
     // Check if the element already has a custom fill (like red/blue debug highlights)
@@ -784,7 +790,7 @@ function generateStandaloneSVG() {
     h.setAttribute('fill', customFill || accent);
     h.setAttribute('r', state.dotRadius);
   });
-  
+
   const labels = clone.querySelectorAll('.node-label');
   labels.forEach(l => {
     l.removeAttribute('class');
@@ -793,7 +799,7 @@ function generateStandaloneSVG() {
     l.style.fontSize = `${state.fontSize}px`;
     l.style.fontWeight = '500';
   });
-  
+
   // Embed background color and default styling in exported SVG
   const style = document.createElementNS("http://www.w3.org/2000/svg", "style");
   style.textContent = `
@@ -801,7 +807,7 @@ function generateStandaloneSVG() {
     text { user-select: none; }
   `;
   clone.insertBefore(style, clone.firstChild);
-  
+
   return clone;
 }
 
@@ -810,11 +816,11 @@ function exportSVG() {
   const standaloneSvg = generateStandaloneSVG();
   const serializer = new XMLSerializer();
   const source = serializer.serializeToString(standaloneSvg);
-  
+
   const filename = `${state.text.toLowerCase().replace(/\s+/g, '-')}-logo.svg`;
   const blob = new Blob([source], { type: "image/svg+xml;charset=utf-8" });
   const url = URL.createObjectURL(blob);
-  
+
   const a = document.createElement('a');
   a.href = url;
   a.download = filename;
@@ -829,7 +835,7 @@ function copySVGCode() {
   const standaloneSvg = generateStandaloneSVG();
   const serializer = new XMLSerializer();
   const source = serializer.serializeToString(standaloneSvg);
-  
+
   navigator.clipboard.writeText(source)
     .then(() => {
       const originalText = btnCopySvg.innerHTML;
@@ -851,26 +857,26 @@ function exportPNG() {
   const standaloneSvg = generateStandaloneSVG();
   const serializer = new XMLSerializer();
   const svgString = serializer.serializeToString(standaloneSvg);
-  
+
   // Canvas export size (Retina size 1600x1600 for sharp scaling)
   const exportSize = 1600;
   const canvas = document.createElement('canvas');
   canvas.width = exportSize;
   canvas.height = exportSize;
   const ctx = canvas.getContext('2d');
-  
+
   const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
   const url = URL.createObjectURL(svgBlob);
   const img = new Image();
-  
-  img.onload = function() {
+
+  img.onload = function () {
     ctx.drawImage(img, 0, 0, exportSize, exportSize);
     URL.revokeObjectURL(url);
-    
+
     // Download PNG link
     const filename = `${state.text.toLowerCase().replace(/\s+/g, '-')}-logo.png`;
     const pngUrl = canvas.toDataURL('image/png');
-    
+
     const a = document.createElement('a');
     a.href = pngUrl;
     a.download = filename;
@@ -878,8 +884,263 @@ function exportPNG() {
     a.click();
     document.body.removeChild(a);
   };
-  
+
   img.src = url;
+}
+
+// --- Path Animation Engine ---
+
+const pathAnimation = {
+  active: false,
+  state: 'idle', // 'drawing', 'pause', 'erasing'
+  startTime: 0,
+  currentSegment: 0,
+  progress: 0.0,
+  pulseIndex: -1,
+  pulseStartTime: 0,
+  pulseDuration: 250,    // ms for coordinate dot scale pulse
+  onComplete: null
+};
+
+let animFrameId = null;
+
+function startPathAnimation(onCycleComplete = null) {
+  stopPathAnimation();
+
+  pathAnimation.active = true;
+  pathAnimation.state = 'drawing';
+  pathAnimation.currentSegment = 0;
+  pathAnimation.progress = 0.0;
+  pathAnimation.pulseIndex = 0; // Pulse first dot immediately
+  pathAnimation.pulseStartTime = performance.now();
+  pathAnimation.startTime = performance.now();
+  pathAnimation.onComplete = onCycleComplete;
+
+  tickAnimation(performance.now());
+}
+
+function stopPathAnimation() {
+  pathAnimation.active = false;
+  pathAnimation.state = 'idle';
+  if (animFrameId) {
+    cancelAnimationFrame(animFrameId);
+    animFrameId = null;
+  }
+}
+
+function tickAnimation(now) {
+  if (!pathAnimation.active) return;
+
+  const pointsArray = getRoutedPoints(state.points);
+  if (pointsArray.length <= 1) {
+    stopPathAnimation();
+    render();
+    return;
+  }
+
+  const numSegments = pointsArray.length - 1;
+
+  // Calculate dynamic durations based on speed slider
+  const speedFactor = state.animationIntervalMs / 1000.0;
+  const segmentDuration = 350 * speedFactor;
+  const eraseDuration = 180 * speedFactor; // speed of erasing
+  const pauseDuration = 1000 * speedFactor;
+
+  if (pathAnimation.state === 'drawing') {
+    const elapsed = Math.max(0, now - pathAnimation.startTime);
+    const totalDrawTime = numSegments * segmentDuration;
+
+    if (elapsed >= totalDrawTime) {
+      pathAnimation.state = 'pause';
+      pathAnimation.startTime = now;
+      pathAnimation.currentSegment = numSegments;
+      pathAnimation.progress = 1.0;
+
+      // Pulse the final dot when the line reaches it!
+      pathAnimation.pulseIndex = numSegments;
+      pathAnimation.pulseStartTime = now;
+    } else {
+      // Clamp newSeg to valid index bounds [0, numSegments - 1] to prevent negative or overflow values
+      const newSeg = Math.max(0, Math.min(numSegments - 1, Math.floor(elapsed / segmentDuration)));
+      pathAnimation.progress = (elapsed % segmentDuration) / segmentDuration;
+
+      if (pathAnimation.currentSegment !== newSeg) {
+        pathAnimation.currentSegment = newSeg;
+        // Trigger pulse on the dot we just reached!
+        pathAnimation.pulseIndex = newSeg;
+        pathAnimation.pulseStartTime = now;
+      }
+    }
+  }
+  else if (pathAnimation.state === 'pause') {
+    const elapsed = Math.max(0, now - pathAnimation.startTime);
+    if (elapsed >= pauseDuration) {
+      if (animationInterval) { // Auto-advance interval flag is active
+        pathAnimation.state = 'erasing';
+        pathAnimation.startTime = now;
+        pathAnimation.currentSegment = 0;
+        pathAnimation.progress = 0.0;
+      } else {
+        stopPathAnimation();
+        render(); // static final render
+        return;
+      }
+    }
+  }
+  else if (pathAnimation.state === 'erasing') {
+    const elapsed = Math.max(0, now - pathAnimation.startTime);
+    const totalEraseTime = numSegments * eraseDuration;
+
+    if (elapsed >= totalEraseTime) {
+      stopPathAnimation();
+      if (pathAnimation.onComplete) {
+        pathAnimation.onComplete();
+      }
+      return;
+    } else {
+      pathAnimation.currentSegment = Math.max(0, Math.min(numSegments - 1, Math.floor(elapsed / eraseDuration)));
+      const segElapsed = elapsed % eraseDuration;
+      pathAnimation.progress = segElapsed / eraseDuration;
+    }
+  }
+
+  renderAnimatedFrame(pointsArray, now);
+  animFrameId = requestAnimationFrame(tickAnimation);
+}
+
+function renderAnimatedFrame(pointsArray, now) {
+  renderGrid();
+
+  const numSegments = pointsArray.length - 1;
+  const pixelPoints = pointsArray.map(p => gridToPixel(p.x, p.y));
+  let pathD = '';
+
+  const speedFactor = state.animationIntervalMs / 1000.0;
+  const currentPulseDuration = pathAnimation.pulseDuration * speedFactor;
+
+  if (pathAnimation.state === 'drawing') {
+    const pts = [];
+    for (let i = 0; i <= pathAnimation.currentSegment; i++) {
+      if (pixelPoints[i]) pts.push(pixelPoints[i]);
+    }
+    if (pathAnimation.currentSegment < numSegments) {
+      const pStart = pixelPoints[pathAnimation.currentSegment];
+      const pEnd = pixelPoints[pathAnimation.currentSegment + 1];
+      if (pStart && pEnd) {
+        const px = pStart.x + pathAnimation.progress * (pEnd.x - pStart.x);
+        const py = pStart.y + pathAnimation.progress * (pEnd.y - pStart.y);
+        pts.push({ x: px, y: py });
+      }
+    }
+    pathD = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+  }
+  else if (pathAnimation.state === 'pause') {
+    pathD = pixelPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+  }
+  else if (pathAnimation.state === 'erasing') {
+    const pts = [];
+    if (pathAnimation.currentSegment < numSegments) {
+      const pStart = pixelPoints[pathAnimation.currentSegment];
+      const pEnd = pixelPoints[pathAnimation.currentSegment + 1];
+      if (pStart && pEnd) {
+        const px = pStart.x + pathAnimation.progress * (pEnd.x - pStart.x);
+        const py = pStart.y + pathAnimation.progress * (pEnd.y - pStart.y);
+        pts.push({ x: px, y: py });
+      }
+    }
+    for (let i = pathAnimation.currentSegment + 1; i <= numSegments; i++) {
+      if (pixelPoints[i]) pts.push(pixelPoints[i]);
+    }
+    pathD = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+  }
+
+  logoPath.setAttribute("d", pathD);
+  logoPath.setAttribute("stroke-width", state.strokeWidth);
+  pathInfoDisplay.textContent = calculatePathLength(pixelPoints);
+
+  // Render Dots (with scale pulse)
+  dotsGroup.innerHTML = '';
+  state.points.forEach((p) => {
+    const pos = gridToPixel(p.x, p.y);
+
+    const nodeGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    nodeGroup.setAttribute("class", "node-group");
+    nodeGroup.setAttribute("data-id", p.id);
+
+    nodeGroup.addEventListener('pointerenter', () => {
+      coordDisplay.textContent = `Letter "${p.char}" at Grid intersection (${p.x}, ${p.y})`;
+    });
+    nodeGroup.addEventListener('pointerleave', () => {
+      if (state.activeDragId === null) {
+        coordDisplay.textContent = 'Hover coordinates or drag nodes to position';
+      }
+    });
+
+    const hitArea = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    hitArea.setAttribute("cx", pos.x);
+    hitArea.setAttribute("cy", pos.y);
+    hitArea.setAttribute("r", Math.max(24, state.dotRadius * 2));
+    hitArea.setAttribute("class", "node-hit-area");
+
+    const visibleCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    visibleCircle.setAttribute("cx", pos.x);
+    visibleCircle.setAttribute("cy", pos.y);
+
+    let scale = 1.0;
+    if (pathAnimation.active && pathAnimation.state === 'drawing' && pathAnimation.pulseIndex >= 0) {
+      const pulsingPoint = pointsArray[pathAnimation.pulseIndex];
+      if (pulsingPoint && pulsingPoint.id === p.id) {
+        const pulseElapsed = now - pathAnimation.pulseStartTime;
+        const u = Math.min(1.0, pulseElapsed / currentPulseDuration);
+        scale = 1.0 + dotScaleAmount * Math.sin(u * Math.PI); // Pulse up using global scale factor
+      }
+    }
+
+    visibleCircle.setAttribute("r", state.dotRadius * scale);
+    visibleCircle.setAttribute("class", "node-handle");
+
+    let fillOverride = "";
+    if (state.debugMode && pointsArray.length > 0) {
+      const pathIndex = pointsArray.findIndex(rp => rp.id === p.id);
+      if (pathIndex !== -1) {
+        const t = pointsArray.length > 1 ? pathIndex / (pointsArray.length - 1) : 0;
+        const lightness = 30 + t * 55;
+        fillOverride = `hsl(0, 100%, ${lightness}%)`;
+      }
+    }
+
+    if (fillOverride) {
+      visibleCircle.setAttribute("fill", fillOverride);
+      visibleCircle.style.fill = fillOverride;
+    }
+
+    nodeGroup.appendChild(hitArea);
+    nodeGroup.appendChild(visibleCircle);
+    dotsGroup.appendChild(nodeGroup);
+  });
+
+  // Render Labels (always visible, never get erased)
+  labelsGroup.innerHTML = '';
+  if (state.showLabels) {
+    const labelPositions = getLabelPositions(pointsArray);
+    pointsArray.forEach((p, i) => {
+      const pos = labelPositions[i];
+      const textLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      textLabel.setAttribute("x", pos.x);
+      textLabel.setAttribute("y", pos.y);
+      textLabel.setAttribute("class", "node-label");
+      textLabel.textContent = p.char;
+
+      textLabel.style.fontFamily = state.fontFamily;
+      textLabel.style.fontSize = `${state.fontSize}px`;
+
+      let dy = pos.dirY < 0 ? "-0.4em" : "0.9em";
+      textLabel.setAttribute("text-anchor", "middle");
+      textLabel.setAttribute("dy", dy);
+
+      labelsGroup.appendChild(textLabel);
+    });
+  }
 }
 
 // Animation Helper Functions
@@ -895,51 +1156,66 @@ function startAnimation() {
   btnAnimatePath.innerHTML = '<i data-lucide="square"></i> Stop';
   btnAnimatePath.classList.add('active');
   lucide.createIcons();
-  
-  triggerGenerativeStep();
-  
-  animationInterval = setInterval(() => {
-    triggerGenerativeStep();
-  }, state.animationIntervalMs);
+
+  animationInterval = true;
+  runNextAnimationCycle();
 }
 
 function stopAnimation() {
-  if (animationInterval) {
-    clearInterval(animationInterval);
-    animationInterval = null;
-  }
+  animationInterval = false;
+  stopPathAnimation();
   btnAnimatePath.innerHTML = '<i data-lucide="play"></i> Animate';
   btnAnimatePath.classList.remove('active');
   lucide.createIcons();
 }
 
-// Action: Randomize positions of dots on the grid (SKIP in rows 1-3, LAB in rows 5-7, no edge positions, no overlaps)
-function randomizeDotPositions() {
+function runNextAnimationCycle() {
+  if (!animationInterval) return;
+
+  triggerGenerativeStepDataOnly();
+  updateVariationsGallery();
+
+  startPathAnimation(() => {
+    runNextAnimationCycle();
+  });
+}
+
+function triggerGenerativeStepDataOnly() {
+  if (state.genTarget === 'position') {
+    randomizeDotPositionsDataOnly();
+  } else {
+    shufflePointsDataOnly();
+  }
+}
+
+function triggerGenerativeStep() {
+  triggerGenerativeStepDataOnly();
+  render();
+  updateVariationsGallery();
+}
+
+function randomizeDotPositionsDataOnly() {
   const skipPoints = state.points.filter(p => p.labelPos === 'above');
   const labPoints = state.points.filter(p => p.labelPos === 'below');
-  
-  // Fallback division in half if no labelPos grouping exists
+
   const mid = Math.ceil(state.points.length / 2);
   const group1 = skipPoints.length > 0 ? skipPoints : state.points.slice(0, mid);
   const group2 = labPoints.length > 0 ? labPoints : state.points.slice(mid);
-  
+
   const midGrid = state.gridSize / 2;
-  const yUpperMax = Math.floor(midGrid) - 1; // e.g. 3 for grid size 8
-  const yLowerMin = Math.ceil(midGrid) + 1;  // e.g. 5 for grid size 8
+  const yUpperMax = Math.floor(midGrid) - 1;
+  const yLowerMin = Math.ceil(midGrid) + 1;
 
   let attempts = 0;
   let success = false;
-  
-  // Backup coordinates in case we need to roll back
   const backupCoords = state.points.map(p => ({ id: p.id, x: p.x, y: p.y }));
 
   while (attempts < 100 && !success) {
     const occupied = new Set();
-    
+
     function getUniqueCoord(yMin, yMax) {
       let cellAttempts = 0;
       while (cellAttempts < 100) {
-        // Columns: 1 to gridSize - 1
         const x = Math.floor(Math.random() * (state.gridSize - 1)) + 1;
         const y = Math.floor(Math.random() * (yMax - yMin + 1)) + yMin;
         const key = `${x},${y}`;
@@ -952,24 +1228,22 @@ function randomizeDotPositions() {
       return { x: Math.floor(Math.random() * (state.gridSize - 1)) + 1, y: yMin };
     }
 
-    // Assign temporary coordinates
     group1.forEach(p => {
       const coords = getUniqueCoord(1, yUpperMax);
       p.x = coords.x;
       p.y = coords.y;
     });
-    
+
     group2.forEach(p => {
       const coords = getUniqueCoord(yLowerMin, state.gridSize - 1);
       p.x = coords.x;
       p.y = coords.y;
     });
 
-    // Check if the resulting path for the active mode crosses any dots (collinear overlap)
     const routed = getRoutedPoints(state.points, state.pathMode, false);
     let hasOverlap = false;
     for (let i = 0; i < routed.length - 1; i++) {
-      if (lineCrossesAnyDot(routed[i], routed[i+1], state.points)) {
+      if (lineCrossesAnyDot(routed[i], routed[i + 1], state.points)) {
         hasOverlap = true;
         break;
       }
@@ -981,7 +1255,6 @@ function randomizeDotPositions() {
     attempts++;
   }
 
-  // Fallback to backup if no clean positions could be found in 100 tries
   if (!success) {
     state.points.forEach(p => {
       const backup = backupCoords.find(bc => bc.id === p.id);
@@ -992,24 +1265,23 @@ function randomizeDotPositions() {
     });
   }
 
-  // Recompute path order based on active mode
   recomputePathOrder(state.points, state.pathMode);
+}
+
+function randomizeDotPositions() {
+  randomizeDotPositionsDataOnly();
   render();
   updateVariationsGallery();
 }
 
-function triggerGenerativeStep() {
-  if (state.genTarget === 'position') {
-    randomizeDotPositions();
-  } else {
-    shufflePoints();
-  }
-}
-
-function shufflePoints() {
+function shufflePointsDataOnly() {
   state.pathMode = 'random';
   selectPathMode.value = 'random';
   recomputePathOrder(state.points, 'random');
+}
+
+function shufflePoints() {
+  shufflePointsDataOnly();
   render();
   updateVariationsGallery();
 }
@@ -1019,6 +1291,7 @@ function setupEventListeners() {
   // Update Lettering Text
   btnUpdateText.addEventListener('click', () => {
     stopAnimation();
+    stopPathAnimation();
     const val = inputText.value.trim();
     if (val.length > 0) {
       state.text = val;
@@ -1028,32 +1301,33 @@ function setupEventListeners() {
       updateVariationsGallery();
     }
   });
-  
+
   inputText.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
       btnUpdateText.click();
     }
   });
-  
+
   // Path routing mode dropdown
   selectPathMode.addEventListener('change', (e) => {
-    if (e.target.value !== 'random') {
-      stopAnimation();
-    }
+    stopAnimation();
+    stopPathAnimation();
     state.pathMode = e.target.value;
     recomputePathOrder(state.points, state.pathMode);
     render();
   });
-  
-  // Shuffle path points sequence (only makes a visual difference in 'random' mode)
+
+  // Shuffle path points sequence (with drawing animation)
   btnShufflePath.addEventListener('click', () => {
     stopAnimation();
-    triggerGenerativeStep();
+    triggerGenerativeStepDataOnly();
+    updateVariationsGallery();
+    startPathAnimation();
   });
 
   // Animation button
   btnAnimatePath.addEventListener('click', toggleAnimation);
-  
+
   // Toggle Text Labels button
   btnToggleText.addEventListener('click', () => {
     state.showLabels = !state.showLabels;
@@ -1068,7 +1342,7 @@ function setupEventListeners() {
     render();
     updateVariationsGallery();
   });
-  
+
   // Generative Target Radios
   radioGenTargets.forEach(radio => {
     radio.addEventListener('change', (e) => {
@@ -1081,62 +1355,57 @@ function setupEventListeners() {
     const sec = parseFloat(e.target.value);
     valAnimationSpeed.textContent = `${sec.toFixed(1)}s`;
     state.animationIntervalMs = sec * 1000;
-    
-    if (animationInterval) {
-      clearInterval(animationInterval);
-      animationInterval = setInterval(() => {
-        triggerGenerativeStep();
-      }, state.animationIntervalMs);
-    }
   });
-  
+
   // Stroke thickness slider
   rangeStrokeWidth.addEventListener('input', (e) => {
     state.strokeWidth = parseFloat(e.target.value);
     valStrokeWidth.textContent = `${state.strokeWidth}px`;
     render();
   });
-  
+
   // Node handle size slider
   rangeDotRadius.addEventListener('input', (e) => {
     state.dotRadius = parseInt(e.target.value);
     valDotRadius.textContent = `${state.dotRadius}px`;
     render();
   });
-  
+
   // Typography font family selector
   selectFont.addEventListener('change', (e) => {
     state.fontFamily = e.target.value;
     render();
   });
-  
+
   // Typography size selector
   rangeFontSize.addEventListener('input', (e) => {
     state.fontSize = parseInt(e.target.value);
     valFontSize.textContent = `${state.fontSize}px`;
     render();
   });
-  
+
   // Grid size selector
   selectGridSize.addEventListener('change', (e) => {
     stopAnimation();
+    stopPathAnimation();
     state.gridSize = parseInt(e.target.value);
     resetPointsToDefault();
     recomputePathOrder(state.points, state.pathMode);
     render();
     updateVariationsGallery();
   });
-  
+
   // Toggle grid background visibility
   btnToggleGrid.addEventListener('click', () => {
     state.showGrid = !state.showGrid;
     btnToggleGrid.classList.toggle('active', state.showGrid);
     render();
   });
-  
+
   // Reset nodes to default layout
   btnResetPoints.addEventListener('click', () => {
     stopAnimation();
+    stopPathAnimation();
     resetPointsToDefault();
     state.pathMode = 'zigzag';
     selectPathMode.value = 'zigzag';

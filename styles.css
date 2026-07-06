@@ -10,10 +10,10 @@
   --accent: #18181b;
   --accent-glow: rgba(24, 24, 27, 0.06);
   --accent-hover: #000000;
-  
+
   --grid-line: rgba(24, 24, 27, 0.06);
   --grid-border: rgba(24, 24, 27, 0.15);
-  
+
   --shadow-main: 0 4px 20px rgba(0, 0, 0, 0.03), 0 1px 3px rgba(0, 0, 0, 0.01);
   --font-display: 'Outfit', sans-serif;
   --font-ui: 'Inter', sans-serif;
@@ -207,13 +207,15 @@ body {
   padding-top: 0.75rem;
 }
 
-.coord-info, .path-length-info {
+.coord-info,
+.path-length-info {
   display: flex;
   align-items: center;
   gap: 0.4rem;
 }
 
-.coord-info i, .path-length-info i {
+.coord-info i,
+.path-length-info i {
   width: 14px;
   height: 14px;
   color: var(--accent);
@@ -276,7 +278,8 @@ body {
 }
 
 /* Inputs & Form Controls */
-input[type="text"], select {
+input[type="text"],
+select {
   width: 100%;
   padding: 0.65rem 0.85rem;
   background-color: #ffffff;
@@ -289,7 +292,8 @@ input[type="text"], select {
   transition: var(--transition);
 }
 
-input[type="text"]:focus, select:focus {
+input[type="text"]:focus,
+select:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
@@ -304,7 +308,9 @@ input[type="text"]:focus, select:focus {
 }
 
 /* Buttons */
-.btn-primary, .btn-secondary, .btn-outline {
+.btn-primary,
+.btn-secondary,
+.btn-outline {
   padding: 0.65rem 1rem;
   border-radius: 8px;
   font-family: var(--font-ui);
@@ -350,9 +356,17 @@ input[type="text"]:focus, select:focus {
   background-color: var(--accent-glow);
 }
 
-.w-100 { width: 100%; }
-.mt-2 { margin-top: 0.5rem; }
-.flex-1 { flex: 1; }
+.w-100 {
+  width: 100%;
+}
+
+.mt-2 {
+  margin-top: 0.5rem;
+}
+
+.flex-1 {
+  flex: 1;
+}
 
 .export-actions {
   display: flex;
@@ -369,6 +383,7 @@ input[type="text"]:focus, select:focus {
   color: var(--text-main);
   font-weight: 500;
 }
+
 .radio-label input {
   accent-color: var(--accent);
   cursor: pointer;
@@ -390,7 +405,7 @@ input[type="text"]:focus, select:focus {
 }
 
 input[type="range"] {
-  -webkit-appearance: none;
+
   width: 100%;
   height: 6px;
   background: rgba(0, 0, 0, 0.08);
