@@ -15,6 +15,7 @@ const state = {
   fontFamily: "'Outfit', sans-serif",
   fontSize: 28,
   showGrid: true,
+  showLabels: true,    // Toggle rendering of letter labels (SKIP LAB text)
   labelOffset: 25,
   activeDragId: null,
   animationIntervalMs: 1000,
@@ -39,6 +40,7 @@ const btnUpdateText = document.getElementById('btn-update-text');
 const selectPathMode = document.getElementById('select-path-mode');
 const btnShufflePath = document.getElementById('btn-shuffle-path');
 const btnAnimatePath = document.getElementById('btn-animate-path');
+const btnToggleText = document.getElementById('btn-toggle-text');
 const btnToggleDebug = document.getElementById('btn-toggle-debug');
 const rangeAnimationSpeed = document.getElementById('range-animation-speed');
 const valAnimationSpeed = document.getElementById('val-animation-speed');
@@ -524,28 +526,30 @@ function render() {
   
   // 6. Render Labels (Letters - Constant Position relative to Dots)
   labelsGroup.innerHTML = '';
-  const labelPositions = getLabelPositions(routedPoints);
-  
-  routedPoints.forEach((p, i) => {
-    const pos = labelPositions[i];
-    const textLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    textLabel.setAttribute("x", pos.x);
-    textLabel.setAttribute("y", pos.y);
-    textLabel.setAttribute("class", "node-label");
-    textLabel.textContent = p.char;
+  if (state.showLabels) {
+    const labelPositions = getLabelPositions(routedPoints);
     
-    // Apply styling properties
-    textLabel.style.fontFamily = state.fontFamily;
-    textLabel.style.fontSize = `${state.fontSize}px`;
-    
-    // Position UP for 'above', DOWN for 'below'
-    let dy = pos.dirY < 0 ? "-0.4em" : "0.9em";
-    
-    textLabel.setAttribute("text-anchor", "middle");
-    textLabel.setAttribute("dy", dy);
-    
-    labelsGroup.appendChild(textLabel);
-  });
+    routedPoints.forEach((p, i) => {
+      const pos = labelPositions[i];
+      const textLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      textLabel.setAttribute("x", pos.x);
+      textLabel.setAttribute("y", pos.y);
+      textLabel.setAttribute("class", "node-label");
+      textLabel.textContent = p.char;
+      
+      // Apply styling properties
+      textLabel.style.fontFamily = state.fontFamily;
+      textLabel.style.fontSize = `${state.fontSize}px`;
+      
+      // Position UP for 'above', DOWN for 'below'
+      let dy = pos.dirY < 0 ? "-0.4em" : "0.9em";
+      
+      textLabel.setAttribute("text-anchor", "middle");
+      textLabel.setAttribute("dy", dy);
+      
+      labelsGroup.appendChild(textLabel);
+    });
+  }
   
   // Update variable style properties in DOM
   document.documentElement.style.setProperty('--dot-radius', `${state.dotRadius}px`);
@@ -909,7 +913,7 @@ function stopAnimation() {
   lucide.createIcons();
 }
 
-// Action: Randomize positions of dots on the grid (SKIP in rows 0-3, LAB in rows 5-8)
+// Action: Randomize positions of dots on the grid (SKIP in rows 1-3, LAB in rows 5-7, no edge positions, no overlaps)
 function randomizeDotPositions() {
   const skipPoints = state.points.filter(p => p.labelPos === 'above');
   const labPoints = state.points.filter(p => p.labelPos === 'below');
@@ -919,41 +923,75 @@ function randomizeDotPositions() {
   const group1 = skipPoints.length > 0 ? skipPoints : state.points.slice(0, mid);
   const group2 = labPoints.length > 0 ? labPoints : state.points.slice(mid);
   
-  const occupied = new Set();
-  
-  // Bound row coordinates dynamically based on grid size
   const midGrid = state.gridSize / 2;
   const yUpperMax = Math.floor(midGrid) - 1; // e.g. 3 for grid size 8
   const yLowerMin = Math.ceil(midGrid) + 1;  // e.g. 5 for grid size 8
 
-  function getUniqueCoord(yMin, yMax) {
-    let attempts = 0;
-    while (attempts < 100) {
-      // Columns: 1 to gridSize - 1
-      const x = Math.floor(Math.random() * (state.gridSize - 1)) + 1;
-      const y = Math.floor(Math.random() * (yMax - yMin + 1)) + yMin;
-      const key = `${x},${y}`;
-      if (!occupied.has(key)) {
-        occupied.add(key);
-        return { x, y };
+  let attempts = 0;
+  let success = false;
+  
+  // Backup coordinates in case we need to roll back
+  const backupCoords = state.points.map(p => ({ id: p.id, x: p.x, y: p.y }));
+
+  while (attempts < 100 && !success) {
+    const occupied = new Set();
+    
+    function getUniqueCoord(yMin, yMax) {
+      let cellAttempts = 0;
+      while (cellAttempts < 100) {
+        // Columns: 1 to gridSize - 1
+        const x = Math.floor(Math.random() * (state.gridSize - 1)) + 1;
+        const y = Math.floor(Math.random() * (yMax - yMin + 1)) + yMin;
+        const key = `${x},${y}`;
+        if (!occupied.has(key)) {
+          occupied.add(key);
+          return { x, y };
+        }
+        cellAttempts++;
       }
-      attempts++;
+      return { x: Math.floor(Math.random() * (state.gridSize - 1)) + 1, y: yMin };
     }
-    return { x: Math.floor(Math.random() * (state.gridSize - 1)) + 1, y: yMin };
+
+    // Assign temporary coordinates
+    group1.forEach(p => {
+      const coords = getUniqueCoord(1, yUpperMax);
+      p.x = coords.x;
+      p.y = coords.y;
+    });
+    
+    group2.forEach(p => {
+      const coords = getUniqueCoord(yLowerMin, state.gridSize - 1);
+      p.x = coords.x;
+      p.y = coords.y;
+    });
+
+    // Check if the resulting path for the active mode crosses any dots (collinear overlap)
+    const routed = getRoutedPoints(state.points, state.pathMode, false);
+    let hasOverlap = false;
+    for (let i = 0; i < routed.length - 1; i++) {
+      if (lineCrossesAnyDot(routed[i], routed[i+1], state.points)) {
+        hasOverlap = true;
+        break;
+      }
+    }
+
+    if (!hasOverlap) {
+      success = true;
+    }
+    attempts++;
   }
-  
-  group1.forEach(p => {
-    const coords = getUniqueCoord(1, yUpperMax); // Starts at row 1, not 0
-    p.x = coords.x;
-    p.y = coords.y;
-  });
-  
-  group2.forEach(p => {
-    const coords = getUniqueCoord(yLowerMin, state.gridSize - 1); // Ends at gridSize - 1, not gridSize
-    p.x = coords.x;
-    p.y = coords.y;
-  });
-  
+
+  // Fallback to backup if no clean positions could be found in 100 tries
+  if (!success) {
+    state.points.forEach(p => {
+      const backup = backupCoords.find(bc => bc.id === p.id);
+      if (backup) {
+        p.x = backup.x;
+        p.y = backup.y;
+      }
+    });
+  }
+
   // Recompute path order based on active mode
   recomputePathOrder(state.points, state.pathMode);
   render();
@@ -1016,6 +1054,13 @@ function setupEventListeners() {
   // Animation button
   btnAnimatePath.addEventListener('click', toggleAnimation);
   
+  // Toggle Text Labels button
+  btnToggleText.addEventListener('click', () => {
+    state.showLabels = !state.showLabels;
+    btnToggleText.classList.toggle('active', state.showLabels);
+    render();
+  });
+
   // Debug mode button
   btnToggleDebug.addEventListener('click', () => {
     state.debugMode = !state.debugMode;
