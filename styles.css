@@ -465,6 +465,18 @@ input[type="range"]::-webkit-slider-thumb:hover {
   transition: stroke-width 0.2s ease;
 }
 
+#logo-pattern-connections path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+#logo-pattern-connections circle {
+  fill: none;
+  stroke: var(--accent);
+}
+
 /* Interactive Nodes */
 .node-group {
   cursor: grab;
@@ -475,12 +487,14 @@ input[type="range"]::-webkit-slider-thumb:hover {
 }
 
 .node-handle {
-  fill: var(--accent);
-  transition: r 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), fill 0.2s ease;
+  fill: #ffffff;
+  stroke: var(--accent);
+  stroke-width: var(--dot-stroke-width, 2.5px);
+  transition: r 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), stroke 0.2s ease, fill 0.2s ease;
 }
 
 .node-group:hover .node-handle {
-  fill: var(--accent-hover);
+  stroke: var(--accent-hover);
   r: calc(var(--dot-radius) * 1.2);
 }
 

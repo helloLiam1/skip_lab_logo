@@ -11,9 +11,16 @@ const state = {
   pathOrder: [],       // Ordered list of point IDs defining the path
   pathMode: 'zigzag',  // zigzag, tsp, ltr, random, entry
   strokeWidth: 4,
-  dotRadius: 8,
+  dotRadius: 24,
+  dotStrokeWidth: 2.5,
+  patternType: 'straight',
+  patternCount: 10,
+  patternSpacing: 1.8,
+  patternAmplitude: 20,
+  patternFrequency: 2.0,
+  patternArrowDir: 'right',
   fontFamily: "'Outfit', sans-serif",
-  fontSize: 28,
+  fontSize: 24,
   showGrid: true,
   showLabels: true,    // Toggle rendering of letter labels (SKIP LAB text)
   labelOffset: 25,
@@ -33,6 +40,23 @@ const gridGroup = document.getElementById('grid-lines');
 const logoPath = document.getElementById('logo-path');
 const dotsGroup = document.getElementById('logo-dots');
 const labelsGroup = document.getElementById('logo-labels');
+const logoPatternConnections = document.getElementById('logo-pattern-connections');
+
+// Pattern Inputs
+const selectPatternType = document.getElementById('select-pattern-type');
+const patternSettingsGroup = document.getElementById('pattern-settings-group');
+const rangePatternCount = document.getElementById('range-pattern-count');
+const valPatternCount = document.getElementById('val-pattern-count');
+const rangePatternSpacing = document.getElementById('range-pattern-spacing');
+const valPatternSpacing = document.getElementById('val-pattern-spacing');
+const rangePatternAmplitude = document.getElementById('range-pattern-amplitude');
+const valPatternAmplitude = document.getElementById('val-pattern-amplitude');
+const rangePatternFrequency = document.getElementById('range-pattern-frequency');
+const valPatternFrequency = document.getElementById('val-pattern-frequency');
+const selectPatternArrowDir = document.getElementById('select-pattern-arrow-dir');
+
+const lblPatternCount = document.getElementById('lbl-pattern-count');
+const lblPatternSpacing = document.getElementById('lbl-pattern-spacing');
 
 // Control Inputs
 const inputText = document.getElementById('input-text');
@@ -51,6 +75,8 @@ const rangeStrokeWidth = document.getElementById('range-stroke-width');
 const valStrokeWidth = document.getElementById('val-stroke-width');
 const rangeDotRadius = document.getElementById('range-dot-radius');
 const valDotRadius = document.getElementById('val-dot-radius');
+const rangeDotStrokeWidth = document.getElementById('range-dot-stroke-width');
+const valDotStrokeWidth = document.getElementById('val-dot-stroke-width');
 const selectFont = document.getElementById('select-font');
 const rangeFontSize = document.getElementById('range-font-size');
 const valFontSize = document.getElementById('val-font-size');
@@ -67,7 +93,7 @@ const btnExportPng = document.getElementById('btn-export-png');
 const btnCopySvg = document.getElementById('btn-copy-svg');
 
 // Global variable controlling the coordinate dot scaling intensity (0.3 = 30% scale increase)
-let dotScaleAmount = 0.08; // scaling of the dot
+let dotScaleAmount = 0.1; // scaling of the dot
 
 // Init application
 function init() {
@@ -398,6 +424,382 @@ function getLabelPositions(routedPoints, offsetDistance = state.labelOffset) {
   return offsets;
 }
 
+// Transform local segment coordinate (x, y) where start = (0, 0) and end = (L, 0)
+// to global SVG coordinates between point A (ax, ay) and point B (bx, by)
+function transformLocalToGlobal(x, y, A, B, L) {
+  if (L === 0) return { x: A.x, y: A.y };
+  const ux = (B.x - A.x) / L;
+  const uy = (B.y - A.y) / L;
+  const vx = -uy;
+  const vy = ux;
+  return {
+    x: A.x + x * ux + y * vx,
+    y: A.y + x * uy + y * vy
+  };
+}
+
+// Generate the specific SVG elements / paths for the selected pattern between points A and B
+function generatePatternMarkup(A, B, customType = state.patternType, customStrokeWidth = state.strokeWidth) {
+  const L = Math.hypot(B.x - A.x, B.y - A.y);
+  if (L === 0) return "";
+
+  const type = customType;
+  const count = state.patternCount;
+  const spacing = state.patternSpacing;
+  const radius = state.dotRadius;
+  const thinStrokeWeight = customStrokeWidth;
+  const thickStrokeWeight = customStrokeWidth * 1.5;
+
+  let markup = "";
+
+  if (type === 'straight') {
+    markup += `<path d="M ${A.x} ${A.y} L ${B.x} ${B.y}" stroke-width="${thinStrokeWeight}" />`;
+  } else if (type === 'circles') {
+    const actualSpacing = count > 0 ? L / count : 0;
+    for (let i = 1; i < count; i++) {
+      const lx = i * actualSpacing;
+      const g = transformLocalToGlobal(lx, 0, A, B, L);
+      markup += `<circle cx="${g.x}" cy="${g.y}" r="${radius}" style="stroke: var(--accent); stroke-width: ${thinStrokeWeight}px; fill: none;" />`;
+    }
+  } else if (type === 'wave') {
+    const amplitude = state.patternAmplitude;
+    const frequency = state.patternFrequency;
+
+    const startX = 0;
+    const endX = L;
+
+    for (let i = 0; i < count; i++) {
+      const t = count > 1 ? i / (count - 1) : 0.5;
+      const angle = -Math.PI / 2 + t * Math.PI;
+      const yOffset = radius * Math.sin(angle);
+      const xOffset = radius * Math.cos(angle);
+
+      const lineStartX = startX + xOffset;
+      const lineEndX = endX - xOffset;
+
+      if (lineStartX <= lineEndX) {
+        let pathPoints = [];
+        const step = 4;
+        for (let lx = lineStartX; lx <= lineEndX; lx += step) {
+          const nx = (lx - lineStartX) / (lineEndX - lineStartX);
+          const waveY = yOffset + Math.sin(nx * Math.PI * 2 * frequency) * amplitude;
+          const g = transformLocalToGlobal(lx, waveY, A, B, L);
+          pathPoints.push(g);
+        }
+        const endG = transformLocalToGlobal(lineEndX, yOffset, A, B, L);
+        pathPoints.push(endG);
+
+        const dStr = pathPoints.map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+        markup += `<path d="${dStr}" stroke-width="${thinStrokeWeight}" />`;
+      }
+    }
+  } else if (type === 'squiggly') {
+    const amplitude = state.patternAmplitude;
+    const noise = (val) => (Math.sin(val) + Math.sin(val * 2.13) + Math.sin(val * 3.73)) / 3;
+
+    const startXEdge = radius * 0.5;
+    const endXEdge = L - radius * 0.5;
+
+    if (startXEdge < endXEdge) {
+      const numLoops = Math.max(2, Math.floor(count / 1.5));
+      const pointsPerLoop = 15;
+      const totalPoints = numLoops * pointsPerLoop;
+
+      const pathPoints = [];
+      const startG = transformLocalToGlobal(startXEdge, 0, A, B, L);
+      pathPoints.push(startG);
+
+      for (let i = 1; i < totalPoints; i++) {
+        const t = i / totalPoints;
+        const progressT = t + noise(t * 10) * 0.03;
+        const clampedT = Math.max(0, Math.min(1, progressT));
+        const baseX = startXEdge + clampedT * (endXEdge - startXEdge);
+
+        const phaseNoise = noise(t * 15) * 0.3;
+        const loopAngle = (t * numLoops + phaseNoise) * Math.PI * 2;
+
+        const rx = (spacing * 12) * (1 + noise(t * 12 + 100) * 0.4);
+        const ry = amplitude * (0.8 + noise(t * 8 + 200) * 0.4);
+
+        const offsetX = -Math.cos(loopAngle) * rx;
+        const offsetY = Math.sin(loopAngle) * ry;
+
+        const slant = noise(t * 5 + 300) * 0.4;
+        const tiltedX = offsetX * Math.cos(slant) - offsetY * Math.sin(slant);
+        const tiltedY = offsetX * Math.sin(slant) + offsetY * Math.cos(slant);
+
+        const centerWobble = noise(t * 7 + 400) * (amplitude * 0.2);
+
+        const g = transformLocalToGlobal(baseX + tiltedX, centerWobble + tiltedY, A, B, L);
+        pathPoints.push(g);
+      }
+      const endG = transformLocalToGlobal(endXEdge, 0, A, B, L);
+      pathPoints.push(endG);
+
+      let dStr = `M ${pathPoints[0].x} ${pathPoints[0].y}`;
+      for (let i = 1; i < pathPoints.length - 1; i++) {
+        const xc = (pathPoints[i].x + pathPoints[i + 1].x) / 2;
+        const yc = (pathPoints[i].y + pathPoints[i + 1].y) / 2;
+        dStr += ` Q ${pathPoints[i].x} ${pathPoints[i].y}, ${xc} ${yc}`;
+      }
+      dStr += ` L ${pathPoints[pathPoints.length - 1].x} ${pathPoints[pathPoints.length - 1].y}`;
+      markup += `<path d="${dStr}" stroke-width="${thinStrokeWeight}" />`;
+    }
+  } else if (type === 'dna') {
+    const amplitude = radius;
+    const frequency = state.patternFrequency;
+    const step = 4;
+
+    for (let i = 0; i < count; i++) {
+      const phase = count > 1 ? (i / count) * Math.PI * 2 : 0;
+      let pathPoints = [];
+      for (let lx = 0; lx <= L; lx += step) {
+        const nx = lx / L;
+        const waveY = Math.sin(nx * Math.PI * 2 * frequency + phase) * amplitude;
+        const g = transformLocalToGlobal(lx, waveY, A, B, L);
+        pathPoints.push(g);
+      }
+      const endY = Math.sin(Math.PI * 2 * frequency + phase) * amplitude;
+      const endG = transformLocalToGlobal(L, endY, A, B, L);
+      pathPoints.push(endG);
+
+      const dStr = pathPoints.map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+      markup += `<path d="${dStr}" stroke-width="${thinStrokeWeight}" />`;
+    }
+  } else if (type === 'random-lines') {
+    const pseudoRandom = (seed) => {
+      let x = Math.sin(seed) * 10000;
+      return x - Math.floor(x);
+    };
+
+    const rectHeight = thinStrokeWeight * 3 + 2;
+    const maxRandY = Math.max(0, radius - rectHeight / 2);
+
+    markup += `<g filter="url(#goo)">`;
+    for (let i = 0; i < count; i++) {
+      const randY = (pseudoRandom(i * 1.1) * 2 - 1) * maxRandY;
+      const minX = radius + 10;
+      const maxX = L - radius - 10;
+
+      if (minX < maxX) {
+        const availableWidth = maxX - minX;
+        const absoluteLength = 8 + 200 * pseudoRandom(i * 2.2);
+        const lineLength = Math.min(absoluteLength, availableWidth * 0.25);
+        const startPos = minX + pseudoRandom(i * 3.3) * (availableWidth - lineLength);
+
+        const p1 = transformLocalToGlobal(startPos, randY - rectHeight / 2, A, B, L);
+        const p2 = transformLocalToGlobal(startPos + lineLength, randY - rectHeight / 2, A, B, L);
+        const p3 = transformLocalToGlobal(startPos + lineLength, randY + rectHeight / 2, A, B, L);
+        const p4 = transformLocalToGlobal(startPos, randY + rectHeight / 2, A, B, L);
+
+        markup += `<path d="M ${p1.x} ${p1.y} L ${p2.x} ${p2.y} L ${p3.x} ${p3.y} L ${p4.x} ${p4.y} Z" style="fill: var(--accent); stroke: none;" />`;
+      }
+    }
+    markup += `</g>`;
+  } else if (type === 'dots') {
+    const pseudoRandom = (seed) => {
+      let x = Math.sin(seed) * 10000;
+      return x - Math.floor(x);
+    };
+    const dotRadius = thinStrokeWeight * 2 + 1.5;
+
+    const drawJaggedEdgeMarkup = (startYOffset, seedOffset) => {
+      const numSegments = Math.max(5, Math.floor(count / 2));
+      const segmentWidth = L / numSegments;
+      const pathPoints = [];
+      let circleMarkup = "";
+
+      for (let i = 0; i <= numSegments; i++) {
+        let lx = i * segmentWidth;
+        let ly = startYOffset;
+
+        if (i > 0 && i < numSegments) {
+          // Add random X offset so dots are not equidistant
+          lx += (pseudoRandom(i * 1.3 + seedOffset) * 2 - 1) * (segmentWidth * 0.4);
+          // Add random Y offset so they don't form a perfectly straight line
+          ly += (pseudoRandom(i * 1.1 + seedOffset) * 2 - 1) * (radius * 0.18);
+        }
+
+        const g = transformLocalToGlobal(lx, ly, A, B, L);
+        pathPoints.push(g);
+
+        // Only draw dots for internal points (offset from the circle boundaries)
+        if (i > 0 && i < numSegments) {
+          const isFilled = pseudoRandom(i * 1.5 + seedOffset) < 0.6;
+          if (isFilled) {
+            circleMarkup += `<circle cx="${g.x}" cy="${g.y}" r="${dotRadius}" style="fill: var(--accent); stroke: none;" />`;
+          } else {
+            circleMarkup += `<circle cx="${g.x}" cy="${g.y}" r="${dotRadius}" style="fill: none; stroke: var(--accent); stroke-width: ${thinStrokeWeight}px;" />`;
+          }
+        }
+      }
+      const dStr = pathPoints.map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+      return `<path d="${dStr}" stroke-width="${Math.max(0.5, thinStrokeWeight * 0.7)}" />` + circleMarkup;
+    };
+
+    if (count > 0) {
+      markup += drawJaggedEdgeMarkup(-radius, 100);
+      markup += drawJaggedEdgeMarkup(radius, 200);
+    }
+  } else if (type === 'spring') {
+    const coils = Math.max(1, count);
+    const totalPoints = 100 * coils;
+    const startSpringX = radius;
+    const endSpringX = L - radius;
+    const springWidth = endSpringX - startSpringX;
+
+    const Ry = radius;
+    const Rx = radius * 0.4;
+    const pathPoints = [];
+
+    for (let i = 0; i <= totalPoints; i++) {
+      const t = i / totalPoints;
+      const angle = t * coils * Math.PI * 2 - Math.PI / 2;
+      const lx = startSpringX + springWidth * t - Rx * Math.sin(angle) - Rx;
+      const ly = Ry * Math.cos(angle);
+      const g = transformLocalToGlobal(lx, ly, A, B, L);
+      pathPoints.push(g);
+    }
+    const dStr = pathPoints.map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+    markup += `<path d="${dStr}" stroke-width="${thinStrokeWeight}" />`;
+  } else if (type === 'pipe') {
+    const pseudoRandom = (seed) => {
+      let x = Math.sin(seed) * 10000;
+      return x - Math.floor(x);
+    };
+
+    const t1 = transformLocalToGlobal(0, -radius, A, B, L);
+    const t2 = transformLocalToGlobal(L, -radius, A, B, L);
+    const b1 = transformLocalToGlobal(0, radius, A, B, L);
+    const b2 = transformLocalToGlobal(L, radius, A, B, L);
+
+    markup += `<path d="M ${t1.x} ${t1.y} L ${t2.x} ${t2.y} M ${b1.x} ${b1.y} L ${b2.x} ${b2.y}" stroke-width="${thickStrokeWeight}" />`;
+
+    for (let i = 0; i < count; i++) {
+      const seed = i * 7.3;
+      const bubbleRadius = 2 + Math.pow(pseudoRandom(seed), 4) * (radius * 0.2);
+      const minX = radius + bubbleRadius + 5;
+      const maxX = L - radius - bubbleRadius - 5;
+
+      if (minX < maxX) {
+        const lx = minX + pseudoRandom(seed + 1) * (maxX - minX);
+        const topBound = -radius + thickStrokeWeight / 2 + bubbleRadius + 2;
+        const bottomBound = radius - thickStrokeWeight / 2 - bubbleRadius - 2;
+
+        if (topBound < bottomBound) {
+          const ly = topBound + pseudoRandom(seed + 2) * (bottomBound - topBound);
+          const g = transformLocalToGlobal(lx, ly, A, B, L);
+          markup += `<circle cx="${g.x}" cy="${g.y}" r="${bubbleRadius}" style="fill: var(--accent); stroke: none;" />`;
+        }
+      }
+    }
+  } else if (type === 'pills') {
+    const pillRadius = radius + (thickStrokeWeight - thinStrokeWeight) / 2;
+
+    const t1 = transformLocalToGlobal(0, -pillRadius, A, B, L);
+    const t2 = transformLocalToGlobal(L, -pillRadius, A, B, L);
+    const b1 = transformLocalToGlobal(0, pillRadius, A, B, L);
+    const b2 = transformLocalToGlobal(L, pillRadius, A, B, L);
+
+    markup += `<path d="M ${t1.x} ${t1.y} L ${t2.x} ${t2.y} M ${b1.x} ${b1.y} L ${b2.x} ${b2.y}" stroke-width="${thinStrokeWeight}" />`;
+
+    const centerX = L / 2;
+    const maxOffset = Math.max(0, L / 2 - 2 * radius);
+
+    for (let i = 0; i < count; i++) {
+      let offset = 0;
+      if (count > 1) {
+        const progress = i / (count - 1);
+        offset = progress * maxOffset;
+      }
+
+      const leftArcCx = centerX - offset;
+      const rightArcCx = centerX + offset;
+
+      const lStart = transformLocalToGlobal(leftArcCx, -pillRadius, A, B, L);
+      const lEnd = transformLocalToGlobal(leftArcCx, pillRadius, A, B, L);
+      const rStart = transformLocalToGlobal(rightArcCx, pillRadius, A, B, L);
+      const rEnd = transformLocalToGlobal(rightArcCx, -pillRadius, A, B, L);
+
+      markup += `<path d="M ${lStart.x} ${lStart.y} A ${pillRadius} ${pillRadius} 0 0 0 ${lEnd.x} ${lEnd.y}" stroke-width="${thinStrokeWeight}" />`;
+      markup += `<path d="M ${rStart.x} ${rStart.y} A ${pillRadius} ${pillRadius} 0 0 0 ${rEnd.x} ${rEnd.y}" stroke-width="${thinStrokeWeight}" />`;
+    }
+  } else if (type === 'arrows') {
+    const direction = state.patternArrowDir;
+    const arrowHeight = radius;
+    const arrowWidth = radius;
+
+    const pointySideGap = 10;
+    const openSideGap = -20;
+
+    const firstArrowDir = (direction === 'left') ? 'left' : 'right';
+    const lastArrowDir = (direction === 'right') ? 'right' : 'left';
+
+    let startXEdge, endXEdge;
+    if (firstArrowDir === 'right') {
+      startXEdge = radius + openSideGap + arrowWidth / 2;
+    } else {
+      startXEdge = radius + pointySideGap + arrowWidth / 2;
+    }
+
+    if (lastArrowDir === 'right') {
+      endXEdge = L - radius - pointySideGap - arrowWidth / 2;
+    } else {
+      endXEdge = L - radius - openSideGap - arrowWidth / 2;
+    }
+
+    if (startXEdge < endXEdge) {
+      const availableWidth = endXEdge - startXEdge;
+      const arrowSpacing = count > 1 ? availableWidth / (count - 1) : 0;
+
+      let dStr = "";
+      for (let i = 0; i < count; i++) {
+        const cx = count > 1 ? startXEdge + i * arrowSpacing : startXEdge + availableWidth / 2;
+        let drawLeft = false;
+        let drawRight = false;
+
+        if (direction === 'right') {
+          drawRight = true;
+        } else if (direction === 'left') {
+          drawLeft = true;
+        } else if (direction === 'center') {
+          const midIndex = (count - 1) / 2;
+          if (i < midIndex) {
+            drawRight = true;
+          } else if (i > midIndex) {
+            drawLeft = true;
+          } else {
+            drawRight = true;
+            drawLeft = true;
+          }
+        }
+
+        if (drawRight) {
+          const p1 = transformLocalToGlobal(cx - arrowWidth / 2, -arrowHeight, A, B, L);
+          const p2 = transformLocalToGlobal(cx + arrowWidth / 2, 0, A, B, L);
+          const p3 = transformLocalToGlobal(cx - arrowWidth / 2, arrowHeight, A, B, L);
+          dStr += ` M ${p1.x} ${p1.y} L ${p2.x} ${p2.y} L ${p3.x} ${p3.y}`;
+        }
+        if (drawLeft) {
+          const p1 = transformLocalToGlobal(cx + arrowWidth / 2, -arrowHeight, A, B, L);
+          const p2 = transformLocalToGlobal(cx - arrowWidth / 2, 0, A, B, L);
+          const p3 = transformLocalToGlobal(cx + arrowWidth / 2, arrowHeight, A, B, L);
+          dStr += ` M ${p1.x} ${p1.y} L ${p2.x} ${p2.y} L ${p3.x} ${p3.y}`;
+        }
+      }
+      markup += `<path d="${dStr}" stroke-width="${thinStrokeWeight}" />`;
+    }
+  }
+
+  const startCircleG = transformLocalToGlobal(0, 0, A, B, L);
+  const endCircleG = transformLocalToGlobal(L, 0, A, B, L);
+
+  const masks = `<circle cx="${startCircleG.x}" cy="${startCircleG.y}" r="${radius}" style="fill: #ffffff; stroke: none;" />` +
+    `<circle cx="${endCircleG.x}" cy="${endCircleG.y}" r="${radius}" style="fill: #ffffff; stroke: none;" />`;
+
+  return masks + markup;
+}
+
 // Calculate the total pixel length of the drawn path (Straight lines only)
 function calculatePathLength(pixelPoints) {
   if (pixelPoints.length <= 1) return 0;
@@ -462,10 +864,12 @@ function render() {
   const routedPoints = getRoutedPoints(state.points);
   const pixelPoints = routedPoints.map(p => gridToPixel(p.x, p.y));
 
-  // 3. Render Path (Straight lines only)
-  const pathD = pixelPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-  logoPath.setAttribute("d", pathD);
-  logoPath.setAttribute("stroke-width", state.strokeWidth);
+  // 3. Render Pattern Connections
+  let patternMarkup = "";
+  for (let i = 0; i < pixelPoints.length - 1; i++) {
+    patternMarkup += generatePatternMarkup(pixelPoints[i], pixelPoints[i + 1]);
+  }
+  logoPatternConnections.innerHTML = patternMarkup;
 
   // 4. Update Path Length display
   const totalLength = calculatePathLength(pixelPoints);
@@ -529,13 +933,11 @@ function render() {
     dotsGroup.appendChild(nodeGroup);
   });
 
-  // 6. Render Labels (Letters - Constant Position relative to Dots)
+  // 6. Render Labels (Letters - Centered inside Dots)
   labelsGroup.innerHTML = '';
   if (state.showLabels) {
-    const labelPositions = getLabelPositions(routedPoints);
-
-    routedPoints.forEach((p, i) => {
-      const pos = labelPositions[i];
+    routedPoints.forEach((p) => {
+      const pos = gridToPixel(p.x, p.y);
       const textLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
       textLabel.setAttribute("x", pos.x);
       textLabel.setAttribute("y", pos.y);
@@ -546,11 +948,8 @@ function render() {
       textLabel.style.fontFamily = state.fontFamily;
       textLabel.style.fontSize = `${state.fontSize}px`;
 
-      // Position UP for 'above', DOWN for 'below'
-      let dy = pos.dirY < 0 ? "-0.4em" : "0.9em";
-
       textLabel.setAttribute("text-anchor", "middle");
-      textLabel.setAttribute("dy", dy);
+      textLabel.setAttribute("dominant-baseline", "central");
 
       labelsGroup.appendChild(textLabel);
     });
@@ -558,6 +957,7 @@ function render() {
 
   // Update variable style properties in DOM
   document.documentElement.style.setProperty('--dot-radius', `${state.dotRadius}px`);
+  document.documentElement.style.setProperty('--dot-stroke-width', `${state.dotStrokeWidth}px`);
 }
 
 // Drag & Drop Handlers
@@ -677,17 +1077,14 @@ function updateVariationsGallery() {
 
     const pixelPoints = variantPoints.map(p => gridToPixel(p.x, p.y));
 
-    // Render path (straight lines only)
-    const pathD = pixelPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-
-    const mPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    mPath.setAttribute("d", pathD);
-    mPath.setAttribute("fill", "none");
-    mPath.setAttribute("stroke", "var(--accent)");
-    mPath.setAttribute("stroke-width", "6");
-    mPath.setAttribute("stroke-linecap", "round");
-    mPath.setAttribute("stroke-linejoin", "round");
-    miniSvg.appendChild(mPath);
+    // Render pattern connections
+    const mPatternGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    let variantPatternMarkup = "";
+    for (let i = 0; i < pixelPoints.length - 1; i++) {
+      variantPatternMarkup += generatePatternMarkup(pixelPoints[i], pixelPoints[i + 1]);
+    }
+    mPatternGroup.innerHTML = variantPatternMarkup;
+    miniSvg.appendChild(mPatternGroup);
 
     // Render points
     variantPoints.forEach((p, idx) => {
@@ -695,17 +1092,40 @@ function updateVariationsGallery() {
       const mCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
       mCircle.setAttribute("cx", pos.x);
       mCircle.setAttribute("cy", pos.y);
-      mCircle.setAttribute("r", "10");
+      mCircle.setAttribute("r", state.dotRadius);
+      mCircle.setAttribute("stroke-width", state.dotStrokeWidth);
 
-      let fillVal = "var(--accent)";
+      let fillVal = "#ffffff";
+      let strokeVal = "var(--accent)";
       if (state.debugMode && variantPoints.length > 0) {
         const t = variantPoints.length > 1 ? idx / (variantPoints.length - 1) : 0;
         const lightness = 30 + t * 55;
         fillVal = `hsl(0, 100%, ${lightness}%)`;
       }
       mCircle.setAttribute("fill", fillVal);
+      mCircle.setAttribute("stroke", strokeVal);
       miniSvg.appendChild(mCircle);
     });
+
+    // Render labels in mini-SVG
+    if (state.showLabels) {
+      const mLabelsGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      variantPoints.forEach(p => {
+        const pos = gridToPixel(p.x, p.y);
+        const mLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        mLabel.setAttribute("x", pos.x);
+        mLabel.setAttribute("y", pos.y);
+        mLabel.setAttribute("fill", "var(--text-main)");
+        mLabel.setAttribute("text-anchor", "middle");
+        mLabel.setAttribute("dominant-baseline", "central");
+        mLabel.style.fontFamily = state.fontFamily;
+        mLabel.style.fontSize = `${state.fontSize}px`;
+        mLabel.style.fontWeight = "500";
+        mLabel.textContent = p.char;
+        mLabelsGroup.appendChild(mLabel);
+      });
+      miniSvg.appendChild(mLabelsGroup);
+    }
 
     svgBox.appendChild(miniSvg);
     card.appendChild(svgBox);
@@ -788,7 +1208,9 @@ function generateStandaloneSVG() {
     // Check if the element already has a custom fill (like red/blue debug highlights)
     const customFill = h.getAttribute('fill') || h.style.fill;
     h.removeAttribute('class');
-    h.setAttribute('fill', customFill || accent);
+    h.setAttribute('fill', customFill || '#ffffff');
+    h.setAttribute('stroke', accent);
+    h.setAttribute('stroke-width', state.dotStrokeWidth);
     h.setAttribute('r', state.dotRadius);
   });
 
@@ -796,6 +1218,8 @@ function generateStandaloneSVG() {
   labels.forEach(l => {
     l.removeAttribute('class');
     l.setAttribute('fill', text);
+    l.setAttribute('text-anchor', 'middle');
+    l.setAttribute('dominant-baseline', 'central');
     l.style.fontFamily = state.fontFamily;
     l.style.fontSize = `${state.fontSize}px`;
     l.style.fontWeight = '500';
@@ -806,6 +1230,16 @@ function generateStandaloneSVG() {
   style.textContent = `
     svg { background-color: ${bg}; }
     text { user-select: none; }
+    #logo-pattern-connections path {
+      fill: none;
+      stroke: ${accent};
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    #logo-pattern-connections circle {
+      fill: none;
+      stroke: ${accent};
+    }
   `;
   clone.insertBefore(style, clone.firstChild);
 
@@ -1014,15 +1448,15 @@ function renderAnimatedFrame(pointsArray, now) {
 
   const numSegments = pointsArray.length - 1;
   const pixelPoints = pointsArray.map(p => gridToPixel(p.x, p.y));
-  let pathD = '';
-
   const speedFactor = state.animationIntervalMs / 1000.0;
   const currentPulseDuration = pathAnimation.pulseDuration * speedFactor;
 
+  let patternMarkup = "";
   if (pathAnimation.state === 'drawing') {
-    const pts = [];
-    for (let i = 0; i <= pathAnimation.currentSegment; i++) {
-      if (pixelPoints[i]) pts.push(pixelPoints[i]);
+    for (let i = 0; i < pathAnimation.currentSegment; i++) {
+      if (pixelPoints[i] && pixelPoints[i + 1]) {
+        patternMarkup += generatePatternMarkup(pixelPoints[i], pixelPoints[i + 1]);
+      }
     }
     if (pathAnimation.currentSegment < numSegments) {
       const pStart = pixelPoints[pathAnimation.currentSegment];
@@ -1030,33 +1464,33 @@ function renderAnimatedFrame(pointsArray, now) {
       if (pStart && pEnd) {
         const px = pStart.x + pathAnimation.progress * (pEnd.x - pStart.x);
         const py = pStart.y + pathAnimation.progress * (pEnd.y - pStart.y);
-        pts.push({ x: px, y: py });
+        patternMarkup += generatePatternMarkup(pStart, { x: px, y: py });
       }
     }
-    pathD = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-  }
-  else if (pathAnimation.state === 'pause') {
-    pathD = pixelPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-  }
-  else if (pathAnimation.state === 'erasing') {
-    const pts = [];
+  } else if (pathAnimation.state === 'pause') {
+    for (let i = 0; i < numSegments; i++) {
+      if (pixelPoints[i] && pixelPoints[i + 1]) {
+        patternMarkup += generatePatternMarkup(pixelPoints[i], pixelPoints[i + 1]);
+      }
+    }
+  } else if (pathAnimation.state === 'erasing') {
     if (pathAnimation.currentSegment < numSegments) {
       const pStart = pixelPoints[pathAnimation.currentSegment];
       const pEnd = pixelPoints[pathAnimation.currentSegment + 1];
       if (pStart && pEnd) {
         const px = pStart.x + pathAnimation.progress * (pEnd.x - pStart.x);
         const py = pStart.y + pathAnimation.progress * (pEnd.y - pStart.y);
-        pts.push({ x: px, y: py });
+        patternMarkup += generatePatternMarkup({ x: px, y: py }, pEnd);
       }
     }
-    for (let i = pathAnimation.currentSegment + 1; i <= numSegments; i++) {
-      if (pixelPoints[i]) pts.push(pixelPoints[i]);
+    for (let i = pathAnimation.currentSegment + 1; i < numSegments; i++) {
+      if (pixelPoints[i] && pixelPoints[i + 1]) {
+        patternMarkup += generatePatternMarkup(pixelPoints[i], pixelPoints[i + 1]);
+      }
     }
-    pathD = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
   }
 
-  logoPath.setAttribute("d", pathD);
-  logoPath.setAttribute("stroke-width", state.strokeWidth);
+  logoPatternConnections.innerHTML = patternMarkup;
   pathInfoDisplay.textContent = calculatePathLength(pixelPoints);
 
   // Render Dots (with scale pulse)
@@ -1123,9 +1557,8 @@ function renderAnimatedFrame(pointsArray, now) {
   // Render Labels (always visible, never get erased)
   labelsGroup.innerHTML = '';
   if (state.showLabels) {
-    const labelPositions = getLabelPositions(pointsArray);
-    pointsArray.forEach((p, i) => {
-      const pos = labelPositions[i];
+    pointsArray.forEach((p) => {
+      const pos = gridToPixel(p.x, p.y);
       const textLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
       textLabel.setAttribute("x", pos.x);
       textLabel.setAttribute("y", pos.y);
@@ -1135,9 +1568,8 @@ function renderAnimatedFrame(pointsArray, now) {
       textLabel.style.fontFamily = state.fontFamily;
       textLabel.style.fontSize = `${state.fontSize}px`;
 
-      let dy = pos.dirY < 0 ? "-0.4em" : "0.9em";
       textLabel.setAttribute("text-anchor", "middle");
-      textLabel.setAttribute("dy", dy);
+      textLabel.setAttribute("dominant-baseline", "central");
 
       labelsGroup.appendChild(textLabel);
     });
@@ -1294,8 +1726,111 @@ function shufflePoints() {
   updateVariationsGallery();
 }
 
+function updatePatternUI() {
+  const type = state.patternType;
+
+  if (type === 'straight') {
+    patternSettingsGroup.style.display = 'none';
+    return;
+  }
+
+  patternSettingsGroup.style.display = 'flex';
+
+  const waveCtrls = document.querySelectorAll('.wave-control');
+  const arrowCtrls = document.querySelectorAll('.arrow-control');
+  waveCtrls.forEach(el => el.style.display = 'none');
+  arrowCtrls.forEach(el => el.style.display = 'none');
+
+  document.getElementById('ctrl-pattern-count').style.display = 'flex';
+  document.getElementById('ctrl-pattern-spacing').style.display = 'flex';
+
+  if (type === 'circles') {
+    lblPatternCount.textContent = 'Connecting Circles';
+    lblPatternSpacing.textContent = 'Spacing Factor (unused)';
+    document.getElementById('ctrl-pattern-spacing').style.display = 'none';
+  } else if (type === 'wave') {
+    waveCtrls.forEach(el => el.style.display = 'flex');
+    lblPatternCount.textContent = 'Number of Lines';
+    lblPatternSpacing.textContent = 'Spacing Factor (unused)';
+    document.getElementById('ctrl-pattern-spacing').style.display = 'none';
+  } else if (type === 'squiggly') {
+    waveCtrls.forEach(el => el.style.display = 'flex');
+    lblPatternCount.textContent = 'Squiggle Detail';
+    lblPatternSpacing.textContent = 'Loop Size Factor';
+  } else if (type === 'dna') {
+    waveCtrls.forEach(el => el.style.display = 'flex');
+    document.getElementById('ctrl-pattern-amplitude').style.display = 'none';
+    lblPatternCount.textContent = 'Number of Strands';
+    lblPatternSpacing.textContent = 'Spacing Factor (unused)';
+    document.getElementById('ctrl-pattern-spacing').style.display = 'none';
+  } else if (type === 'random-lines') {
+    lblPatternCount.textContent = 'Number of Pills';
+    lblPatternSpacing.textContent = 'Spacing Factor (unused)';
+    document.getElementById('ctrl-pattern-spacing').style.display = 'none';
+  } else if (type === 'dots') {
+    lblPatternCount.textContent = 'Number of Dots';
+    lblPatternSpacing.textContent = 'Spacing Factor (unused)';
+    document.getElementById('ctrl-pattern-spacing').style.display = 'none';
+  } else if (type === 'spring') {
+    lblPatternCount.textContent = 'Number of Coils';
+    lblPatternSpacing.textContent = 'Spacing Factor (unused)';
+    document.getElementById('ctrl-pattern-spacing').style.display = 'none';
+  } else if (type === 'pipe') {
+    lblPatternCount.textContent = 'Number of Bubbles';
+    lblPatternSpacing.textContent = 'Spacing Factor (unused)';
+    document.getElementById('ctrl-pattern-spacing').style.display = 'none';
+  } else if (type === 'pills') {
+    lblPatternCount.textContent = 'Number of Pills';
+    lblPatternSpacing.textContent = 'Spacing Factor (unused)';
+    document.getElementById('ctrl-pattern-spacing').style.display = 'none';
+  } else if (type === 'arrows') {
+    arrowCtrls.forEach(el => el.style.display = 'flex');
+    lblPatternCount.textContent = 'Number of Arrows';
+    lblPatternSpacing.textContent = 'Spacing Factor (unused)';
+    document.getElementById('ctrl-pattern-spacing').style.display = 'none';
+  }
+}
+
 // Event Listeners Setup
 function setupEventListeners() {
+  // Connection Pattern Style Type Selection
+  selectPatternType.addEventListener('change', (e) => {
+    state.patternType = e.target.value;
+    updatePatternUI();
+    render();
+  });
+
+  rangePatternCount.addEventListener('input', (e) => {
+    state.patternCount = parseInt(e.target.value);
+    valPatternCount.textContent = state.patternCount;
+    render();
+  });
+
+  rangePatternSpacing.addEventListener('input', (e) => {
+    state.patternSpacing = parseFloat(e.target.value);
+    valPatternSpacing.textContent = state.patternSpacing.toFixed(1);
+    render();
+  });
+
+  rangePatternAmplitude.addEventListener('input', (e) => {
+    state.patternAmplitude = parseInt(e.target.value);
+    valPatternAmplitude.textContent = `${state.patternAmplitude}px`;
+    render();
+  });
+
+  rangePatternFrequency.addEventListener('input', (e) => {
+    state.patternFrequency = parseFloat(e.target.value);
+    valPatternFrequency.textContent = state.patternFrequency.toFixed(1);
+    render();
+  });
+
+  selectPatternArrowDir.addEventListener('change', (e) => {
+    state.patternArrowDir = e.target.value;
+    render();
+  });
+
+  // Initial update of Pattern UI
+  updatePatternUI();
   // Update Lettering Text
   btnUpdateText.addEventListener('click', () => {
     stopAnimation();
@@ -1380,6 +1915,13 @@ function setupEventListeners() {
   rangeDotRadius.addEventListener('input', (e) => {
     state.dotRadius = parseInt(e.target.value);
     valDotRadius.textContent = `${state.dotRadius}px`;
+    render();
+  });
+
+  // Circle stroke thickness slider
+  rangeDotStrokeWidth.addEventListener('input', (e) => {
+    state.dotStrokeWidth = parseFloat(e.target.value);
+    valDotStrokeWidth.textContent = `${state.dotStrokeWidth}px`;
     render();
   });
 
