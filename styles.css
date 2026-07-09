@@ -614,3 +614,90 @@ input[type="range"]::-webkit-slider-thumb:hover {
 .variation-card:hover .variation-title {
   color: var(--accent);
 }
+
+/* Ported Connection Styles */
+.halftone-circle {
+  transition: r 0.1s ease-out;
+}
+
+.gravity-line {
+  fill: none;
+  stroke: #000000;
+  stroke-linecap: round;
+  transition: stroke-opacity 0.15s ease, stroke-width 0.15s ease;
+}
+
+/* Ramification Mode Elements */
+.ramification-circle {
+  fill: #000000;
+  stroke: none;
+}
+
+.ramification-circle-node {
+  fill: #000000;
+  stroke: #000000;
+  stroke-width: 2.5px;
+  transition: stroke-width 0.15s ease, r 0.15s ease;
+}
+
+.ramification-line {
+  fill: none;
+  stroke: #000000;
+  stroke-linecap: round;
+}
+
+/* Mindmap Mode Elements */
+.mindmap-circle-node {
+  fill: #000000;
+  stroke: #000000;
+  stroke-width: 2.5px;
+  transition: stroke-width 0.15s ease, r 0.15s ease;
+}
+
+.mindmap-line {
+  fill: none;
+  stroke: #000000;
+  stroke-linecap: round;
+}
+
+/* Evolving Ovals Mode */
+.evolving-oval {
+  fill: none;
+  stroke: #000000;
+}
+
+/* Evolving Lines Mode */
+.evolving-line {
+  stroke: #000000;
+  stroke-linecap: round;
+}
+
+/* Swirl Mode */
+.swirl-line {
+  fill: none;
+  stroke: #000000;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Toggle Buttons */
+.toggle-btn {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.toggle-btn:hover {
+  border-color: #ffffff44;
+  color: var(--text-main);
+}
+.toggle-btn.active {
+  background: #ffffff18;
+  border-color: #ffffff66;
+  color: var(--text-main);
+}

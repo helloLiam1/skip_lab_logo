@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Circle Pattern</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- SVG Filter for Gooey Effect -->
+    <svg style="visibility: hidden; position: absolute;" width="0" height="0" xmlns="http://www.w3.org/2000/svg" version="1.1">
+        <defs>
+            <filter id="goo">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur" />
+                <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 19 -9" result="goo" />
+            </filter>
+        </defs>
+    </svg>
+    <div class="container">
+        <div class="canvas-container">
+            <canvas id="patternCanvas"></canvas>
+        </div>
+        
+        <div class="options-panel">
+            <h2>Pattern Options</h2>
+            
+            <div class="control-group">
+                <div class="label-row">
+                    <label for="patternType">Pattern Type</label>
+                </div>
+                <select id="patternType" class="select-input">
+                    <option value="circles">Overlapping Circles</option>
+                    <option value="wave">Wave Lines</option>
+                    <option value="squiggly">Squiggly Line</option>
+                    <option value="dna">DNA Curve</option>
+                    <option value="random-lines">Gooey Rectangles</option>
+                    <option value="dots">Dots</option>
+                    <option value="spring">Spring Mode</option>
+                    <option value="pipe">Pipe Mode</option>
+                    <option value="pills">Pill Mode</option>
+                    <option value="arrows">Arrows</option>
+                </select>
+            </div>
+
+            <div class="control-group arrow-control" style="display: none;">
+                <div class="label-row">
+                    <label for="arrowDirection">Arrow Direction</label>
+                </div>
+                <select id="arrowDirection" class="select-input">
+                    <option value="right">Right</option>
+                    <option value="left">Left</option>
+                    <option value="center">Towards Center</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <div class="label-row">
+                    <label id="countLabel" for="elementCount">Connecting Circles</label>
+                    <span class="value-display" id="elementCountVal">40</span>
+                </div>
+                <input type="range" id="elementCount" min="0" max="100" value="40">
+            </div>
+            
+            <div class="control-group">
+                <div class="label-row">
+                    <label id="spacingLabel" for="elementSpacing">Spacing</label>
+                    <span class="value-display" id="elementSpacingVal">10</span>
+                </div>
+                <input type="range" id="elementSpacing" min="2" max="30" value="10">
+            </div>
+            
+            <div class="control-group wave-control" style="display: none;">
+                <div class="label-row">
+                    <label for="waveAmplitude">Wave Amplitude</label>
+                    <span class="value-display" id="waveAmplitudeVal">40</span>
+                </div>
+                <input type="range" id="waveAmplitude" min="0" max="150" value="40">
+            </div>
+
+            <div class="control-group wave-control" style="display: none;">
+                <div class="label-row">
+                    <label for="waveFrequency">Wave Cycles</label>
+                    <span class="value-display" id="waveFrequencyVal">2</span>
+                </div>
+                <input type="range" id="waveFrequency" min="0.5" max="10" step="0.5" value="2">
+            </div>
+
+            <div class="control-group">
+                <div class="label-row">
+                    <label for="circleRadius">End Circle Radius</label>
+                    <span class="value-display" id="circleRadiusVal">70</span>
+                </div>
+                <input type="range" id="circleRadius" min="20" max="200" value="70">
+            </div>
+
+            <div class="control-group">
+                <div class="label-row">
+                    <label for="thinStrokeWeight">Connecting Stroke Weight</label>
+                    <span class="value-display" id="thinStrokeWeightVal">1</span>
+                </div>
+                <input type="range" id="thinStrokeWeight" min="0.5" max="5" step="0.1" value="1">
+            </div>
+
+            <div class="control-group">
+                <div class="label-row">
+                    <label for="thickStrokeWeight">End Stroke Weight</label>
+                    <span class="value-display" id="thickStrokeWeightVal">5</span>
+                </div>
+                <input type="range" id="thickStrokeWeight" min="1" max="15" step="0.5" value="5">
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

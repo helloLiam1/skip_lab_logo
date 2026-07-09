@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SKIP LAB - Shape Halftone Experiment</title>
+  
+  <!-- Premium Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesque:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar: Controls & Options -->
+    <aside class="sidebar">
+      <header class="sidebar-header">
+        <div class="logo-badge">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <circle cx="12" cy="12" r="6"/>
+            <circle cx="12" cy="12" r="2"/>
+          </svg>
+          <span>Experiment 02</span>
+        </div>
+        <h1>Halftone Shapes</h1>
+        <p class="subtitle">Exploring randomized halftone fields with letter attraction zones for SKIP LAB.</p>
+      </header>
+
+      <!-- Section: Presets -->
+      <section class="control-card">
+        <h2 class="card-title"><i data-lucide="layout"></i> Layout Presets</h2>
+        <div class="button-grid">
+          <button id="btn-preset-horizontal" class="btn-preset" title="Arrange letters horizontally">Line</button>
+          <button id="btn-preset-circular" class="btn-preset" title="Arrange letters in a circle">Circle</button>
+          <button id="btn-preset-wave" class="btn-preset" title="Arrange letters in a sine wave">Wave</button>
+          <button id="btn-preset-random" class="btn-preset" title="Scatter letters randomly">Scatter</button>
+        </div>
+        <button id="btn-randomize-letters" class="btn-primary mt-2 w-100">
+          <i data-lucide="shuffle"></i> Randomize Letters
+        </button>
+        <button id="btn-randomize-nodes" class="btn-secondary mt-1 w-100">
+          <i data-lucide="refresh-cw"></i> Rescatter Field
+        </button>
+      </section>
+
+      <!-- Section: Circle Field Settings -->
+      <section class="control-card">
+        <h2 class="card-title"><i data-lucide="grid"></i> Halftone Field</h2>
+        
+        <div class="control-group">
+          <label for="select-field-type">Connection Type</label>
+          <select id="select-field-type">
+            <option value="lines" selected>Directional Lines (Needles)</option>
+            <option value="circles">Halftone Circles</option>
+            <option value="gravity">Gravity Field Lines</option>
+            <option value="ramification">Ramification</option>
+            <option value="mindmap">Mindmap</option>
+            <option value="ovals">Evolving Ovals</option>
+            <option value="evolving-lines">Evolving Lines</option>
+            <option value="swirl">Swirl Mode</option>
+          </select>
+        </div>
+
+        <div class="control-group" id="group-river-width" style="display: none;">
+          <div class="slider-header">
+            <label for="range-river-width">River Width</label>
+            <span id="val-river-width">30px</span>
+          </div>
+          <input type="range" id="range-river-width" min="5" max="120" step="1" value="30">
+        </div>
+
+        <div class="control-group" id="group-river-intensity" style="display: none;">
+          <div class="slider-header">
+            <label for="range-river-intensity">River Intensity</label>
+            <span id="val-river-intensity">1.5x</span>
+          </div>
+          <input type="range" id="range-river-intensity" min="0.1" max="5.0" step="0.1" value="1.5">
+        </div>
+
+        <div class="control-group" id="group-gravity-lines" style="display: none;">
+          <div class="slider-header">
+            <label for="range-gravity-lines">Gravity Lines</label>
+            <span id="val-gravity-lines">8</span>
+          </div>
+          <input type="range" id="range-gravity-lines" min="1" max="25" step="1" value="8">
+        </div>
+
+        <div class="control-group" id="group-gravity-weight" style="display: none;">
+          <div class="slider-header">
+            <label for="range-gravity-weight">Gravity Line Weight</label>
+            <span id="val-gravity-weight">1.5px</span>
+          </div>
+          <input type="range" id="range-gravity-weight" min="0.5" max="5.0" step="0.1" value="1.5">
+        </div>
+
+        <div class="control-group" id="group-ramification-branches" style="display: none;">
+          <div class="slider-header">
+            <label for="range-ramification-branches">Ramification Branches</label>
+            <span id="val-ramification-branches">3</span>
+          </div>
+          <input type="range" id="range-ramification-branches" min="1" max="5" step="1" value="3">
+        </div>
+        
+        <div class="control-group" id="group-mindmap-text-size" style="display: none;">
+          <div class="slider-header">
+            <label for="range-mindmap-text-size">Text Circle Size</label>
+            <span id="val-mindmap-text-size">25px</span>
+          </div>
+          <input type="range" id="range-mindmap-text-size" min="15" max="45" step="1" value="25">
+        </div>
+
+        <div class="control-group" id="group-mindmap-black-size" style="display: none;">
+          <div class="slider-header">
+            <label for="range-mindmap-black-size">Black Circle Size</label>
+            <span id="val-mindmap-black-size">25px</span>
+          </div>
+          <input type="range" id="range-mindmap-black-size" min="15" max="45" step="1" value="25">
+        </div>
+
+        <div class="control-group" id="group-mindmap-weight" style="display: none;">
+          <div class="slider-header">
+            <label for="range-mindmap-weight">Mindmap Line Weight</label>
+            <span id="val-mindmap-weight">2.0px</span>
+          </div>
+          <input type="range" id="range-mindmap-weight" min="0.5" max="5.0" step="0.1" value="2.0">
+        </div>
+
+        <div class="control-group" id="group-oval-count" style="display: none;">
+          <div class="slider-header">
+            <label for="range-oval-count">Oval Count</label>
+            <span id="val-oval-count">20</span>
+          </div>
+          <input type="range" id="range-oval-count" min="5" max="40" step="1" value="20">
+        </div>
+
+        <div class="control-group" id="group-oval-height" style="display: none;">
+          <div class="slider-header">
+            <label for="range-oval-height">Oval Height</label>
+            <span id="val-oval-height">80px</span>
+          </div>
+          <input type="range" id="range-oval-height" min="20" max="180" step="1" value="80">
+        </div>
+
+        <div class="control-group" id="group-oval-width" style="display: none;">
+          <div class="slider-header">
+            <label for="range-oval-width">Oval Width</label>
+            <span id="val-oval-width">25px</span>
+          </div>
+          <input type="range" id="range-oval-width" min="5" max="60" step="1" value="25">
+        </div>
+
+        <div class="control-group" id="group-oval-tilt" style="display: none;">
+          <div class="slider-header">
+            <label for="range-oval-tilt">Oval Tilt</label>
+            <span id="val-oval-tilt">0°</span>
+          </div>
+          <input type="range" id="range-oval-tilt" min="-90" max="90" step="1" value="0">
+        </div>
+
+        <div class="control-group" id="group-oval-weight" style="display: none;">
+          <div class="slider-header">
+            <label for="range-oval-weight">Oval Line Weight</label>
+            <span id="val-oval-weight">1.5px</span>
+          </div>
+          <input type="range" id="range-oval-weight" min="0.5" max="5.0" step="0.1" value="1.5">
+        </div>
+
+        <div class="control-group" id="group-el-count" style="display: none;">
+          <div class="slider-header">
+            <label for="range-el-count">Line Count</label>
+            <span id="val-el-count">20</span>
+          </div>
+          <input type="range" id="range-el-count" min="5" max="40" step="1" value="20">
+        </div>
+
+        <div class="control-group" id="group-el-length" style="display: none;">
+          <div class="slider-header">
+            <label for="range-el-length">Max Line Length</label>
+            <span id="val-el-length">80px</span>
+          </div>
+          <input type="range" id="range-el-length" min="20" max="180" step="1" value="80">
+        </div>
+
+        <div class="control-group" id="group-el-tilt" style="display: none;">
+          <div class="slider-header">
+            <label for="range-el-tilt">Line Tilt</label>
+            <span id="val-el-tilt">0°</span>
+          </div>
+          <input type="range" id="range-el-tilt" min="-90" max="90" step="1" value="0">
+        </div>
+
+        <div class="control-group" id="group-el-weight" style="display: none;">
+          <div class="slider-header">
+            <label for="range-el-weight">Line Weight</label>
+            <span id="val-el-weight">1.5px</span>
+          </div>
+          <input type="range" id="range-el-weight" min="0.5" max="5.0" step="0.1" value="1.5">
+        </div>
+
+        <div class="control-group" id="group-el-horizontal" style="display: none;">
+          <label style="margin-bottom:8px; display:block;">Line Orientation</label>
+          <div style="display:flex; gap:8px;">
+            <button id="btn-el-vertical" class="toggle-btn active" style="flex:1;">⬆ Vertical</button>
+            <button id="btn-el-horizontal" class="toggle-btn" style="flex:1;">➡ Horizontal</button>
+          </div>
+        </div>
+
+        <div class="control-group" id="group-swirl-count" style="display: none;">
+          <div class="slider-header">
+            <label for="range-swirl-count">Swirl Line Count</label>
+            <span id="val-swirl-count">5</span>
+          </div>
+          <input type="range" id="range-swirl-count" min="1" max="15" step="1" value="5">
+        </div>
+
+        <div class="control-group" id="group-swirl-spread" style="display: none;">
+          <div class="slider-header">
+            <label for="range-swirl-spread">Swirl Spread</label>
+            <span id="val-swirl-spread">10px</span>
+          </div>
+          <input type="range" id="range-swirl-spread" min="2" max="30" step="1" value="10">
+        </div>
+
+        <div class="control-group" id="group-swirl-curviness" style="display: none;">
+          <div class="slider-header">
+            <label for="range-swirl-curviness">Swirl Curviness</label>
+            <span id="val-swirl-curviness">60px</span>
+          </div>
+          <input type="range" id="range-swirl-curviness" min="0" max="200" step="5" value="60">
+        </div>
+
+        <div class="control-group" id="group-swirl-weight" style="display: none;">
+          <div class="slider-header">
+            <label for="range-swirl-weight">Swirl Weight</label>
+            <span id="val-swirl-weight">1.5px</span>
+          </div>
+          <input type="range" id="range-swirl-weight" min="0.5" max="5.0" step="0.1" value="1.5">
+        </div>
+
+
+        <div class="control-group">
+          <label for="select-distribution">Distribution Pattern</label>
+          <select id="select-distribution">
+            <option value="jittered-grid" selected>Jittered Grid (Uniform density)</option>
+            <option value="pure-random">Pure Random (Organic scatter)</option>
+          </select>
+        </div>
+
+        <div class="control-group" id="group-density">
+          <div class="slider-header">
+            <label for="range-density">Circle Count (Grid Size)</label>
+            <span id="val-density">40x40</span>
+          </div>
+          <input type="range" id="range-density" min="15" max="60" step="1" value="38">
+        </div>
+
+        <div class="control-group" id="group-jitter">
+          <div class="slider-header">
+            <label for="range-jitter">Scatter Jitter</label>
+            <span id="val-jitter">12px</span>
+          </div>
+          <input type="range" id="range-jitter" min="0" max="40" step="1" value="14">
+          <p class="field-hint">Transitions background circles from grid to organic disorder.</p>
+        </div>
+
+        <div class="control-group" id="group-random-count" style="display: none;">
+          <div class="slider-header">
+            <label for="range-random-count">Total Circles</label>
+            <span id="val-random-count">1200</span>
+          </div>
+          <input type="range" id="range-random-count" min="200" max="3000" step="50" value="1200">
+        </div>
+
+        <div class="control-group">
+          <div class="slider-header">
+            <label for="range-base-radius">Max Circle Size</label>
+            <span id="val-base-radius">5px</span>
+          </div>
+          <input type="range" id="range-base-radius" min="2" max="15" step="0.5" value="5.5">
+        </div>
+      </section>
+
+      <!-- Section: Influence Zones -->
+      <section class="control-card">
+        <h2 class="card-title"><i data-lucide="sparkles"></i> Attraction Zones</h2>
+        
+        <div class="control-group">
+          <div class="slider-header">
+            <label for="range-influence">Shrink Radius</label>
+            <span id="val-influence">85px</span>
+          </div>
+          <input type="range" id="range-influence" min="40" max="200" step="5" value="85">
+          <p class="field-hint">How far away circles begin getting smaller.</p>
+        </div>
+
+        <div class="control-group">
+          <div class="slider-header">
+            <label for="range-dead-zone">Disappear (Clear) Radius</label>
+            <span id="val-dead-zone">35px</span>
+          </div>
+          <input type="range" id="range-dead-zone" min="15" max="80" step="5" value="35">
+          <p class="field-hint">Inner radius where circles completely vanish.</p>
+        </div>
+
+        <div class="control-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="chk-show-zones">
+            <span>Show Influence Circles</span>
+          </label>
+          <label class="checkbox-label mt-1">
+            <input type="checkbox" id="chk-connect-letters" checked>
+            <span>Draw Order Path (S-K-I-P-L-A-B)</span>
+          </label>
+        </div>
+      </section>
+
+      <!-- Section: Typography & Colors -->
+      <section class="control-card">
+        <h2 class="card-title"><i data-lucide="palette"></i> Style & Aesthetics</h2>
+        
+        <div class="control-group">
+          <label for="select-font">Letter Font</label>
+          <select id="select-font">
+            <option value="'Space Grotesque', sans-serif" selected>Space Grotesque</option>
+            <option value="'Outfit', sans-serif">Outfit</option>
+            <option value="'Inter', sans-serif">Inter</option>
+            <option value="'Fira Code', monospace">Fira Code</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <div class="slider-header">
+            <label for="range-font-size">Letter Size</label>
+            <span id="val-font-size">32px</span>
+          </div>
+          <input type="range" id="range-font-size" min="16" max="72" step="2" value="32">
+        </div>
+
+        <div class="control-group">
+          <label for="color-circles">Circle Color</label>
+          <div class="color-picker-wrapper">
+            <input type="color" id="color-circles" value="#000000">
+            <span id="val-color-circles">#000000</span>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label for="color-letters">Letter Color</label>
+          <div class="color-picker-wrapper">
+            <input type="color" id="color-letters" value="#000000">
+            <span id="val-color-letters">#000000</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Export -->
+      <section class="control-card">
+        <h2 class="card-title"><i data-lucide="download"></i> Export</h2>
+        <div class="export-actions">
+          <button id="btn-export-svg" class="btn-primary">
+            <i data-lucide="file-code"></i> SVG
+          </button>
+          <button id="btn-export-png" class="btn-outline">
+            <i data-lucide="image"></i> PNG
+          </button>
+        </div>
+      </section>
+    </aside>
+
+    <!-- Main Workspace -->
+    <main class="workspace">
+      <div class="canvas-card">
+        <header class="canvas-header">
+          <div class="status-indicator">
+            <i data-lucide="eye" class="pulse-icon"></i>
+            <span>Interactive SVG Canvas</span>
+          </div>
+          <div class="canvas-tip">
+            Drag any letter to reposition it dynamically
+          </div>
+        </header>
+
+        <div class="svg-container">
+          <svg id="halftone-svg" viewBox="0 0 800 800" width="100%" height="100%">
+            <!-- Group for background circles -->
+            <g id="bg-circles"></g>
+            
+            <!-- Group for debug influence circles -->
+            <g id="influence-circles" style="display: none;"></g>
+
+            <!-- Group for path connecting letters S-K-I-P-L-A-B -->
+            <g id="connection-path"></g>
+
+            <!-- Group for interaction letter nodes -->
+            <g id="letter-nodes"></g>
+          </svg>
+        </div>
+
+        <footer class="canvas-footer">
+          <div id="coord-info" class="coord-info">
+            <i data-lucide="info"></i>
+            <span>Click and drag a letter. Circles will shrink and clear out of its path.</span>
+          </div>
+        </footer>
+      </div>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    // Initialize Lucide icons
+    lucide.createIcons();
+  </script>
+</body>
+</html>

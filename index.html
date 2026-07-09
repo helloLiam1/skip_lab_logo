@@ -65,6 +65,8 @@
               </defs>
               <!-- Grid background -->
               <g id="grid-lines"></g>
+              <!-- Halftone background -->
+              <g id="bg-circles"></g>
               <!-- Connection Line Path (legacy) -->
               <path id="logo-path" class="logo-path" style="display: none;" />
               <!-- Connection Pattern Elements -->
@@ -130,13 +132,20 @@
               </label>
             </div>
           </div>
-          <div class="control-group">
+          <div class="control-group" style="display: flex; gap: 1rem; flex-wrap: wrap;">
             <label class="checkbox-label"
               style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; user-select: none;">
               <input type="checkbox" id="chk-animate-draw" checked style="accent-color: var(--accent);">
               <span
                 style="font-weight: 500; font-family: var(--font-ui); color: var(--text-main); font-size: 0.9rem;">Animate
                 Path Drawing</span>
+            </label>
+            <label class="checkbox-label"
+              style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; user-select: none;">
+              <input type="checkbox" id="chk-animate-position" checked style="accent-color: var(--accent);">
+              <span
+                style="font-weight: 500; font-family: var(--font-ui); color: var(--text-main); font-size: 0.9rem;">Animate
+                Position</span>
             </label>
           </div>
           <div class="control-group">
@@ -165,7 +174,7 @@
             <label for="select-pattern-type">Connection Style</label>
             <select id="select-pattern-type">
               <option value="straight" selected>Straight Line</option>
-              <option value="circles">Overlapping Circles</option>
+              <option value="overlapping-circles">Overlapping Circles</option>
               <option value="wave">Wave</option>
               <option value="squiggly">Squiggly Loops</option>
               <option value="dna">DNA Helix Strands</option>
@@ -175,6 +184,14 @@
               <option value="pipe">Pipe with Bubbles</option>
               <option value="pills">Concentric Pills</option>
               <option value="arrows">Nested Arrows</option>
+              <option value="halftone-lines">Directional Lines (Needles)</option>
+              <option value="halftone-circles">Halftone Circles</option>
+              <option value="gravity">Gravity Field Lines</option>
+              <option value="ramification">Ramification</option>
+              <option value="mindmap">Mindmap</option>
+              <option value="ovals">Evolving Ovals</option>
+              <option value="evolving-lines">Evolving Lines</option>
+              <option value="swirl">Swirl Mode</option>
             </select>
           </div>
 
@@ -219,6 +236,316 @@
                 <option value="left">Left</option>
                 <option value="center">Center</option>
               </select>
+            </div>
+
+            <div class="control-group pattern-control pipe-control" id="ctrl-pipe-boundary" style="display: none;">
+              <label class="checkbox-label" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; user-select: none;">
+                <input type="checkbox" id="chk-pipe-boundary" checked style="accent-color: var(--accent);">
+                <span style="font-weight: 500; font-family: var(--font-ui); color: var(--text-main); font-size: 0.9rem;">Show Pipe Boundary</span>
+              </label>
+            </div>
+
+            <!-- Ported Connection Prototype Controls -->
+            <div class="control-group pattern-control halftone-control" id="group-distribution" style="display: none;">
+              <label for="select-halftone-distribution">Distribution Pattern</label>
+              <select id="select-halftone-distribution">
+                <option value="jittered-grid" selected>Jittered Grid (Uniform density)</option>
+                <option value="pure-random">Pure Random (Organic scatter)</option>
+              </select>
+            </div>
+
+            <div class="control-group pattern-control halftone-control" id="group-density" style="display: none;">
+              <div class="slider-header">
+                <label for="range-halftone-density">Circle Count (Grid Size)</label>
+                <span id="val-halftone-density">40x40</span>
+              </div>
+              <input type="range" id="range-halftone-density" min="15" max="60" step="1" value="38">
+            </div>
+
+            <div class="control-group pattern-control halftone-control" id="group-jitter" style="display: none;">
+              <div class="slider-header">
+                <label for="range-halftone-jitter">Scatter Jitter</label>
+                <span id="val-halftone-jitter">12px</span>
+              </div>
+              <input type="range" id="range-halftone-jitter" min="0" max="40" step="1" value="14">
+            </div>
+
+            <div class="control-group pattern-control halftone-control" id="group-random-count" style="display: none;">
+              <div class="slider-header">
+                <label for="range-halftone-random-count">Total Circles</label>
+                <span id="val-halftone-random-count">1200</span>
+              </div>
+              <input type="range" id="range-halftone-random-count" min="200" max="3000" step="50" value="1200">
+            </div>
+
+            <div class="control-group pattern-control halftone-control" id="group-base-radius" style="display: none;">
+              <div class="slider-header">
+                <label for="range-halftone-base-radius">Max Circle Size</label>
+                <span id="val-halftone-base-radius">5.5px</span>
+              </div>
+              <input type="range" id="range-halftone-base-radius" min="2" max="15" step="0.5" value="5.5">
+            </div>
+
+            <div class="control-group pattern-control halftone-control" id="group-influence" style="display: none;">
+              <div class="slider-header">
+                <label for="range-halftone-influence">Shrink Radius</label>
+                <span id="val-halftone-influence">85px</span>
+              </div>
+              <input type="range" id="range-halftone-influence" min="40" max="200" step="5" value="85">
+            </div>
+
+            <div class="control-group pattern-control halftone-control" id="group-dead-zone" style="display: none;">
+              <div class="slider-header">
+                <label for="range-halftone-dead-zone">Disappear (Clear) Radius</label>
+                <span id="val-halftone-dead-zone">35px</span>
+              </div>
+              <input type="range" id="range-halftone-dead-zone" min="15" max="80" step="5" value="35">
+            </div>
+
+            <div class="control-group pattern-control halftone-control" id="group-show-zones" style="display: none;">
+              <label class="checkbox-label" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                <input type="checkbox" id="chk-halftone-show-zones">
+                <span style="font-weight: 500;">Show Influence Circles</span>
+              </label>
+              <label class="checkbox-label mt-1" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin-top: 0.5rem;">
+                <input type="checkbox" id="chk-halftone-connect-letters" checked>
+                <span style="font-weight: 500;">Draw Order Path</span>
+              </label>
+            </div>
+
+            <div class="control-group pattern-control halftone-control" id="group-river-width" style="display: none;">
+              <div class="slider-header">
+                <label for="range-river-width">River Width</label>
+                <span id="val-river-width">30px</span>
+              </div>
+              <input type="range" id="range-river-width" min="5" max="120" step="1" value="30">
+            </div>
+
+            <div class="control-group pattern-control halftone-control" id="group-river-intensity" style="display: none;">
+              <div class="slider-header">
+                <label for="range-river-intensity">River Intensity</label>
+                <span id="val-river-intensity">1.5x</span>
+              </div>
+              <input type="range" id="range-river-intensity" min="0.1" max="5.0" step="0.1" value="1.5">
+            </div>
+
+            <div class="control-group pattern-control gravity-control" id="group-gravity-lines" style="display: none;">
+              <div class="slider-header">
+                <label for="range-gravity-lines">Gravity Lines</label>
+                <span id="val-gravity-lines">8</span>
+              </div>
+              <input type="range" id="range-gravity-lines" min="1" max="25" step="1" value="8">
+            </div>
+
+            <div class="control-group pattern-control gravity-control" id="group-gravity-weight" style="display: none;">
+              <div class="slider-header">
+                <label for="range-gravity-weight">Gravity Line Weight</label>
+                <span id="val-gravity-weight">1.5px</span>
+              </div>
+              <input type="range" id="range-gravity-weight" min="0.5" max="5.0" step="0.1" value="1.5">
+            </div>
+
+            <div class="control-group pattern-control ramification-control" id="group-ramification-branches" style="display: none;">
+              <div class="slider-header">
+                <label for="range-ramification-branches">Ramification Branches</label>
+                <span id="val-ramification-branches">3</span>
+              </div>
+              <input type="range" id="range-ramification-branches" min="1" max="5" step="1" value="3">
+            </div>
+            
+            <div class="control-group pattern-control mindmap-control" id="group-mindmap-text-size" style="display: none;">
+              <div class="slider-header">
+                <label for="range-mindmap-text-size">Text Circle Size</label>
+                <span id="val-mindmap-text-size">25px</span>
+              </div>
+              <input type="range" id="range-mindmap-text-size" min="15" max="45" step="1" value="25">
+            </div>
+
+            <div class="control-group pattern-control mindmap-control" id="group-mindmap-black-size" style="display: none;">
+              <div class="slider-header">
+                <label for="range-mindmap-black-size">Black Circle Size</label>
+                <span id="val-mindmap-black-size">25px</span>
+              </div>
+              <input type="range" id="range-mindmap-black-size" min="15" max="45" step="1" value="25">
+            </div>
+
+            <div class="control-group pattern-control mindmap-control" id="group-mindmap-weight" style="display: none;">
+              <div class="slider-header">
+                <label for="range-mindmap-weight">Mindmap Line Weight</label>
+                <span id="val-mindmap-weight">2.0px</span>
+              </div>
+              <input type="range" id="range-mindmap-weight" min="0.5" max="5.0" step="0.1" value="2.0">
+            </div>
+
+            <div class="control-group pattern-control ovals-control" id="group-oval-count" style="display: none;">
+              <div class="slider-header">
+                <label for="range-oval-count">Oval Count</label>
+                <span id="val-oval-count">20</span>
+              </div>
+              <input type="range" id="range-oval-count" min="5" max="40" step="1" value="20">
+            </div>
+
+            <div class="control-group pattern-control ovals-control" id="group-oval-height" style="display: none;">
+              <div class="slider-header">
+                <label for="range-oval-height">Oval Height</label>
+                <span id="val-oval-height">80px</span>
+              </div>
+              <input type="range" id="range-oval-height" min="20" max="180" step="1" value="80">
+            </div>
+
+            <div class="control-group pattern-control ovals-control" id="group-oval-width" style="display: none;">
+              <div class="slider-header">
+                <label for="range-oval-width">Oval Width</label>
+                <span id="val-oval-width">25px</span>
+              </div>
+              <input type="range" id="range-oval-width" min="5" max="60" step="1" value="25">
+            </div>
+
+            <div class="control-group pattern-control ovals-control" id="group-oval-tilt" style="display: none;">
+              <div class="slider-header">
+                <label for="range-oval-tilt">Oval Tilt</label>
+                <span id="val-oval-tilt">0°</span>
+              </div>
+              <input type="range" id="range-oval-tilt" min="-90" max="90" step="1" value="0">
+            </div>
+
+            <div class="control-group pattern-control ovals-control" id="group-oval-weight" style="display: none;">
+              <div class="slider-header">
+                <label for="range-oval-weight">Oval Line Weight</label>
+                <span id="val-oval-weight">1.5px</span>
+              </div>
+              <input type="range" id="range-oval-weight" min="0.5" max="5.0" step="0.1" value="1.5">
+            </div>
+
+            <div class="control-group pattern-control el-control" id="group-el-count" style="display: none;">
+              <div class="slider-header">
+                <label for="range-el-count">Line Count</label>
+                <span id="val-el-count">20</span>
+              </div>
+              <input type="range" id="range-el-count" min="5" max="40" step="1" value="20">
+            </div>
+
+            <div class="control-group pattern-control el-control" id="group-el-length" style="display: none;">
+              <div class="slider-header">
+                <label for="range-el-length">Max Line Length</label>
+                <span id="val-el-length">80px</span>
+              </div>
+              <input type="range" id="range-el-length" min="20" max="180" step="1" value="80">
+            </div>
+
+            <div class="control-group pattern-control el-control" id="group-el-tilt" style="display: none;">
+              <div class="slider-header">
+                <label for="range-el-tilt">Line Tilt</label>
+                <span id="val-el-tilt">0°</span>
+              </div>
+              <input type="range" id="range-el-tilt" min="-90" max="90" step="1" value="0">
+            </div>
+
+            <div class="control-group pattern-control el-control" id="group-el-weight" style="display: none;">
+              <div class="slider-header">
+                <label for="range-el-weight">Line Weight</label>
+                <span id="val-el-weight">1.5px</span>
+              </div>
+              <input type="range" id="range-el-weight" min="0.5" max="5.0" step="0.1" value="1.5">
+            </div>
+
+            <div class="control-group pattern-control el-control" id="group-el-horizontal" style="display: none;">
+              <label style="margin-bottom:8px; display:block;">Line Orientation</label>
+              <div style="display:flex; gap:8px;">
+                <button id="btn-el-vertical" class="toggle-btn active" style="flex:1;">⬆ Vertical</button>
+                <button id="btn-el-horizontal" class="toggle-btn" style="flex:1;">➡ Horizontal</button>
+              </div>
+            </div>
+
+            <div class="control-group pattern-control swirl-control" id="group-swirl-count" style="display: none;">
+              <div class="slider-header">
+                <label for="range-swirl-count">Swirl Line Count</label>
+                <span id="val-swirl-count">5</span>
+              </div>
+              <input type="range" id="range-swirl-count" min="1" max="15" step="1" value="5">
+            </div>
+
+            <div class="control-group pattern-control swirl-control" id="group-swirl-spread" style="display: none;">
+              <div class="slider-header">
+                <label for="range-swirl-spread">Swirl Spread</label>
+                <span id="val-swirl-spread">10px</span>
+              </div>
+              <input type="range" id="range-swirl-spread" min="2" max="30" step="1" value="10">
+            </div>
+
+            <div class="control-group pattern-control swirl-control" id="group-swirl-curviness" style="display: none;">
+              <div class="slider-header">
+                <label for="range-swirl-curviness">Swirl Curviness</label>
+                <span id="val-swirl-curviness">60px</span>
+              </div>
+              <input type="range" id="range-swirl-curviness" min="0" max="200" step="5" value="60">
+            </div>
+
+            <div class="control-group pattern-control swirl-control" id="group-swirl-weight" style="display: none;">
+              <div class="slider-header">
+                <label for="range-swirl-weight">Swirl Weight</label>
+                <span id="val-swirl-weight">1.5px</span>
+              </div>
+              <input type="range" id="range-swirl-weight" min="0.5" max="5.0" step="0.1" value="1.5">
+            </div>
+
+            <div class="control-group pattern-control halftone-control" id="group-halftone-distribution" style="display: none;">
+              <label for="select-halftone-distribution">Distribution Pattern</label>
+              <select id="select-halftone-distribution">
+                <option value="jittered-grid" selected>Jittered Grid (Uniform density)</option>
+                <option value="pure-random">Pure Random (Organic scatter)</option>
+              </select>
+            </div>
+
+            <div class="control-group pattern-control halftone-control" id="group-halftone-density" style="display: none;">
+              <div class="slider-header">
+                <label for="range-halftone-density">Circle Count (Grid Size)</label>
+                <span id="val-halftone-density">40x40</span>
+              </div>
+              <input type="range" id="range-halftone-density" min="15" max="60" step="1" value="38">
+            </div>
+
+            <div class="control-group pattern-control halftone-control" id="group-halftone-jitter" style="display: none;">
+              <div class="slider-header">
+                <label for="range-halftone-jitter">Scatter Jitter</label>
+                <span id="val-halftone-jitter">12px</span>
+              </div>
+              <input type="range" id="range-halftone-jitter" min="0" max="40" step="1" value="14">
+              <p class="field-hint">Transitions background circles from grid to organic disorder.</p>
+            </div>
+
+            <div class="control-group pattern-control halftone-control" id="group-halftone-random-count" style="display: none;">
+              <div class="slider-header">
+                <label for="range-halftone-random-count">Total Circles</label>
+                <span id="val-halftone-random-count">1200</span>
+              </div>
+              <input type="range" id="range-halftone-random-count" min="200" max="3000" step="50" value="1200">
+            </div>
+
+            <div class="control-group pattern-control halftone-control" id="group-halftone-base-radius" style="display: none;">
+              <div class="slider-header">
+                <label for="range-halftone-base-radius">Max Circle Size</label>
+                <span id="val-halftone-base-radius">5px</span>
+              </div>
+              <input type="range" id="range-halftone-base-radius" min="2" max="15" step="0.5" value="5.5">
+            </div>
+
+            <div class="control-group pattern-control halftone-control" id="group-halftone-influence" style="display: none;">
+              <div class="slider-header">
+                <label for="range-halftone-influence">Shrink Radius</label>
+                <span id="val-halftone-influence">85px</span>
+              </div>
+              <input type="range" id="range-halftone-influence" min="40" max="200" step="5" value="85">
+              <p class="field-hint">How far away circles begin getting smaller.</p>
+            </div>
+
+            <div class="control-group pattern-control halftone-control" id="group-halftone-dead-zone" style="display: none;">
+              <div class="slider-header">
+                <label for="range-halftone-dead-zone">Disappear (Clear) Radius</label>
+                <span id="val-halftone-dead-zone">35px</span>
+              </div>
+              <input type="range" id="range-halftone-dead-zone" min="15" max="80" step="5" value="35">
+              <p class="field-hint">Inner radius where circles completely vanish.</p>
             </div>
           </div>
         </div>
