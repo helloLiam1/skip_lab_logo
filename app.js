@@ -20,7 +20,9 @@ const state = {
   patternFrequency: 2.0,
   patternArrowDir: 'right',
   showPipeBoundary: true,
-  fontFamily: "'Outfit', sans-serif",
+  fontFamily: "'degular-mono', sans-serif",
+  fontWeight: "500",
+  textTransform: "uppercase",
   fontSize: 24,
   showGrid: true,
   showLabels: true,    // Toggle rendering of letter labels (SKIP LAB text)
@@ -242,8 +244,15 @@ function distributeTextPoints(text, gridSize) {
 
   if (words.length >= 2) {
     // Interleave Word 1 (odd columns on upper row) and Word 2 (even columns on lower row)
-    const w1 = words[0].toUpperCase();
-    const w2 = words[1].toUpperCase();
+    let w1 = words[0];
+    let w2 = words[1];
+    if (state.textTransform === 'uppercase') {
+      w1 = w1.toUpperCase();
+      w2 = w2.toUpperCase();
+    } else if (state.textTransform === 'lowercase') {
+      w1 = w1.toLowerCase();
+      w2 = w2.toLowerCase();
+    }
 
     let id = 0;
     // Word 1 columns: 1, 3, 5, 7... labels are always ABOVE
@@ -262,7 +271,12 @@ function distributeTextPoints(text, gridSize) {
     }
   } else {
     // Single word: interleave columns linearly, alternating labels above and below
-    const word = words[0].toUpperCase();
+    let word = words[0];
+    if (state.textTransform === 'uppercase') {
+      word = word.toUpperCase();
+    } else if (state.textTransform === 'lowercase') {
+      word = word.toLowerCase();
+    }
     let id = 0;
     for (let i = 0; i < word.length; i++) {
       const col = 1 + i;
@@ -1913,10 +1927,12 @@ function render() {
 
       // Apply styling properties
       textLabel.style.fontFamily = state.fontFamily;
+      textLabel.style.fontWeight = state.fontWeight;
       textLabel.style.fontSize = `${state.fontSize}px`;
 
       textLabel.setAttribute("text-anchor", "middle");
       textLabel.setAttribute("dominant-baseline", "central");
+      textLabel.setAttribute("dy", "0.05em");
 
       labelsGroup.appendChild(textLabel);
     });
@@ -2110,9 +2126,10 @@ function updateVariationsGallery() {
         mLabel.setAttribute("fill", "var(--text-main)");
         mLabel.setAttribute("text-anchor", "middle");
         mLabel.setAttribute("dominant-baseline", "central");
+        mLabel.setAttribute("dy", "0.05em");
         mLabel.style.fontFamily = state.fontFamily;
+        mLabel.style.fontWeight = state.fontWeight;
         mLabel.style.fontSize = `${state.fontSize}px`;
-        mLabel.style.fontWeight = "500";
         mLabel.textContent = p.char;
         mLabelsGroup.appendChild(mLabel);
       });
@@ -2161,7 +2178,7 @@ function generateStandaloneSVG() {
   hitAreas.forEach(node => node.remove());
 
   // Resolve theme light values
-  const bg = '#ffffff';
+  const bg = 'transparent';
   const text = '#18181b';
   const gridLine = 'rgba(24, 24, 27, 0.06)';
   const gridBorder = 'rgba(24, 24, 27, 0.15)';
@@ -2178,22 +2195,11 @@ function generateStandaloneSVG() {
     path.setAttribute('stroke-linejoin', 'round');
   }
 
-  // Apply hardcoded styles inline to grid, handles and labels
-  const gridLines = clone.querySelectorAll('#grid-lines line');
-  gridLines.forEach(line => {
-    const isBoundary = line.getAttribute('class') === 'grid-line-boundary';
-    line.removeAttribute('class');
-    line.setAttribute('stroke', isBoundary ? gridBorder : gridLine);
-    line.setAttribute('stroke-width', isBoundary ? '1.5' : '1');
-    if (!isBoundary) line.setAttribute('stroke-dasharray', '4 4');
-  });
-
-  const gridDots = clone.querySelectorAll('.grid-intersection-dot');
-  gridDots.forEach(dot => {
-    dot.removeAttribute('class');
-    dot.setAttribute('fill', gridLine);
-    dot.setAttribute('r', '2');
-  });
+  // Remove grid lines and dots for a clean export
+  const gridGroup = clone.querySelector('#grid-lines');
+  if (gridGroup) {
+    gridGroup.remove();
+  }
 
   const handles = clone.querySelectorAll('.node-handle');
   handles.forEach(h => {
@@ -2209,12 +2215,20 @@ function generateStandaloneSVG() {
   const labels = clone.querySelectorAll('.node-label');
   labels.forEach(l => {
     l.removeAttribute('class');
+    l.removeAttribute('style'); // Clear inline styles to avoid Illustrator CSS parser bugs
+    
     l.setAttribute('fill', text);
     l.setAttribute('text-anchor', 'middle');
-    l.setAttribute('dominant-baseline', 'central');
-    l.style.fontFamily = state.fontFamily;
-    l.style.fontSize = `${state.fontSize}px`;
-    l.style.fontWeight = '500';
+    
+    const cleanFont = state.fontFamily.replace(/['"]/g, '').split(',')[0].trim();
+    l.setAttribute('font-family', cleanFont);
+    l.setAttribute('font-size', state.fontSize);
+    l.setAttribute('font-weight', state.fontWeight);
+    
+    // Manually shift Y for Illustrator compatibility instead of using dominant-baseline
+    const currentY = parseFloat(l.getAttribute('y') || 0);
+    l.setAttribute('y', currentY + (state.fontSize * 0.3));
+    l.removeAttribute('dominant-baseline');
   });
 
   // Embed background color and default styling in exported SVG
@@ -2558,10 +2572,12 @@ function renderAnimatedFrame(pointsArray, now) {
       textLabel.textContent = p.char;
 
       textLabel.style.fontFamily = state.fontFamily;
+      textLabel.style.fontWeight = state.fontWeight;
       textLabel.style.fontSize = `${state.fontSize}px`;
 
       textLabel.setAttribute("text-anchor", "middle");
       textLabel.setAttribute("dominant-baseline", "central");
+      textLabel.setAttribute("dy", "0.05em");
 
       labelsGroup.appendChild(textLabel);
     });
@@ -3138,6 +3154,27 @@ function setupEventListeners() {
     render();
   });
 
+  // Typography font weight selector
+  const selectFontWeight = document.getElementById('select-font-weight');
+  if (selectFontWeight) {
+    selectFontWeight.addEventListener('change', (e) => {
+      state.fontWeight = e.target.value;
+      render();
+    });
+  }
+
+  // Typography text transform selector
+  const selectTextTransform = document.getElementById('select-text-transform');
+  if (selectTextTransform) {
+    selectTextTransform.addEventListener('change', (e) => {
+      state.textTransform = e.target.value;
+      resetPointsToDefault();
+      recomputePathOrder(state.points, state.pathMode);
+      render();
+      updateVariationsGallery();
+    });
+  }
+
   // Typography size selector
   rangeFontSize.addEventListener('input', (e) => {
     state.fontSize = parseInt(e.target.value);
@@ -3226,6 +3263,11 @@ function setupEventListeners() {
       render();
     });
   }
+
+  // Export event listeners
+  if (btnExportSvg) btnExportSvg.addEventListener('click', exportSVG);
+  if (btnExportPng) btnExportPng.addEventListener('click', exportPNG);
+  if (btnCopySvg) btnCopySvg.addEventListener('click', copySVGCode);
 }
 
 // Start app on DOM load

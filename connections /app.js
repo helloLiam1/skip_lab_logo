@@ -16,7 +16,9 @@ const state = {
   deadZoneRadius: 35,
   showZones: false,
   connectLetters: true,
-  letterFont: "'Space Grotesque', sans-serif",
+  letterFont: "'degular-mono', sans-serif",
+  letterFontWeight: "700",
+  letterTextTransform: "uppercase",
   letterSize: 32,
   circleColor: '#000000',
   letterColor: '#000000',
@@ -786,6 +788,22 @@ function setupEventListeners() {
     state.letterFont = e.target.value;
     render();
   });
+
+  const selectFontWeight = document.getElementById('select-font-weight');
+  if (selectFontWeight) {
+    selectFontWeight.addEventListener('change', (e) => {
+      state.letterFontWeight = e.target.value;
+      render();
+    });
+  }
+
+  const selectTextTransform = document.getElementById('select-text-transform');
+  if (selectTextTransform) {
+    selectTextTransform.addEventListener('change', (e) => {
+      state.letterTextTransform = e.target.value;
+      render();
+    });
+  }
 
   rangeFontSize.addEventListener('input', (e) => {
     state.letterSize = parseInt(e.target.value);
@@ -1760,10 +1778,21 @@ function renderLetterNodes() {
       textLabel.setAttribute("class", "node-letter");
       textLabel.setAttribute("fill", state.letterColor);
       textLabel.style.fontFamily = state.letterFont;
+      textLabel.style.fontWeight = state.letterFontWeight;
 
       const fontSize = Math.round(state.letterSize * (size / 25));
       textLabel.style.fontSize = `${fontSize}px`;
-      textLabel.textContent = node.char;
+      
+      let char = node.char;
+      if (state.letterTextTransform === 'uppercase') {
+        char = char.toUpperCase();
+      } else if (state.letterTextTransform === 'lowercase') {
+        char = char.toLowerCase();
+      }
+      textLabel.textContent = char;
+      textLabel.setAttribute("dominant-baseline", "central");
+      textLabel.setAttribute("text-anchor", "middle");
+      textLabel.setAttribute("dy", "0.05em");
       nodeGroup.appendChild(textLabel);
     }
 
@@ -1972,12 +2001,20 @@ function generateStandaloneSVG() {
   const nodeLetters = clone.querySelectorAll('.node-letter');
   nodeLetters.forEach(text => {
     text.removeAttribute('class');
-    text.setAttribute('fill', '#000000');
-    text.setAttribute('font-family', state.letterFont);
-    text.setAttribute('font-size', `${state.letterSize}px`);
-    text.setAttribute('font-weight', '700');
+    text.removeAttribute('style'); // Clear inline styles to avoid Illustrator CSS parser bugs
+    
+    text.setAttribute('fill', '#18181b');
     text.setAttribute('text-anchor', 'middle');
-    text.setAttribute('dominant-baseline', 'central');
+    
+    const cleanFont = state.letterFont.replace(/['"]/g, '').split(',')[0].trim();
+    text.setAttribute('font-family', cleanFont);
+    text.setAttribute('font-size', state.letterSize);
+    text.setAttribute('font-weight', state.letterFontWeight);
+    
+    // Manually shift Y for Illustrator compatibility instead of using dominant-baseline
+    const currentY = parseFloat(text.getAttribute('y') || 0);
+    text.setAttribute('y', currentY + (state.letterSize * 0.3));
+    text.removeAttribute('dominant-baseline');
   });
 
   // Inject styles for background and halftone circles

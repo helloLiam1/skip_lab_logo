@@ -1,0 +1,33 @@
+<svg viewBox="0 0 800 800" width="800" height="800" xmlns="http://www.w3.org/2000/svg"><style>
+    svg { background-color: transparent; }
+    text { user-select: none; }
+    #logo-pattern-connections path {
+      fill: none;
+      stroke: #18181b;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    #logo-pattern-connections circle {
+      fill: none;
+      stroke: #18181b;
+    }
+  </style>
+              <defs>
+                <filter id="goo">
+                  <feGaussianBlur in="SourceGraphic" stdDeviation="1.8" result="blur"/>
+                  <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 24 -8" result="goo"/>
+                </filter>
+              </defs>
+              <!-- Grid background -->
+              
+              <!-- Halftone background -->
+              <g id="bg-circles"/>
+              <!-- Connection Line Path (legacy) -->
+              <path id="logo-path" style="display: none;" stroke="#18181b" fill="none" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+              <!-- Connection Pattern Elements -->
+              <g id="logo-pattern-connections"><circle cx="540" cy="330" r="24" style="fill: #ffffff; stroke: none;"/><circle cx="400" cy="330" r="24" style="fill: #ffffff; stroke: none;"/><path d="M 540 330 L 400 330" stroke-width="4"/><circle cx="400" cy="330" r="24" style="fill: #ffffff; stroke: none;"/><circle cx="190" cy="190" r="24" style="fill: #ffffff; stroke: none;"/><path d="M 400 330 L 190 190" stroke-width="4"/><circle cx="190" cy="190" r="24" style="fill: #ffffff; stroke: none;"/><circle cx="260" cy="330" r="24" style="fill: #ffffff; stroke: none;"/><path d="M 190 190 L 260 330" stroke-width="4"/><circle cx="260" cy="330" r="24" style="fill: #ffffff; stroke: none;"/><circle cx="470" cy="540" r="24" style="fill: #ffffff; stroke: none;"/><path d="M 260 330 L 470 540" stroke-width="4"/><circle cx="470" cy="540" r="24" style="fill: #ffffff; stroke: none;"/><circle cx="330" cy="610" r="24" style="fill: #ffffff; stroke: none;"/><path d="M 470 540 L 330 610" stroke-width="4"/><circle cx="330" cy="610" r="24" style="fill: #ffffff; stroke: none;"/><circle cx="330" cy="540" r="24" style="fill: #ffffff; stroke: none;"/><path d="M 330 610 L 330 540" stroke-width="4"/></g>
+              <!-- Interaction dots -->
+              <g id="logo-dots"><g class="node-group" data-id="0"><circle cx="540" cy="330" r="24" fill="#ffffff" stroke="#18181b" stroke-width="2.5"/></g><g class="node-group" data-id="1"><circle cx="400" cy="330" r="24" fill="#ffffff" stroke="#18181b" stroke-width="2.5"/></g><g class="node-group" data-id="2"><circle cx="190" cy="190" r="24" fill="#ffffff" stroke="#18181b" stroke-width="2.5"/></g><g class="node-group" data-id="3"><circle cx="260" cy="330" r="24" fill="#ffffff" stroke="#18181b" stroke-width="2.5"/></g><g class="node-group" data-id="4"><circle cx="470" cy="540" r="24" fill="#ffffff" stroke="#18181b" stroke-width="2.5"/></g><g class="node-group" data-id="5"><circle cx="330" cy="610" r="24" fill="#ffffff" stroke="#18181b" stroke-width="2.5"/></g><g class="node-group" data-id="6"><circle cx="330" cy="540" r="24" fill="#ffffff" stroke="#18181b" stroke-width="2.5"/></g></g>
+              <!-- Text Labels -->
+              <g id="logo-labels"><text x="540" y="339.6" text-anchor="middle" dy="0.05em" style="font-family: degular-mono, sans-serif; font-weight: 500; font-size: 24px;" fill="#18181b">S</text><text x="400" y="339.6" text-anchor="middle" dy="0.05em" style="font-family: degular-mono, sans-serif; font-weight: 500; font-size: 24px;" fill="#18181b">K</text><text x="190" y="199.6" text-anchor="middle" dy="0.05em" style="font-family: degular-mono, sans-serif; font-weight: 500; font-size: 24px;" fill="#18181b">I</text><text x="260" y="339.6" text-anchor="middle" dy="0.05em" style="font-family: degular-mono, sans-serif; font-weight: 500; font-size: 24px;" fill="#18181b">P</text><text x="470" y="549.6" text-anchor="middle" dy="0.05em" style="font-family: degular-mono, sans-serif; font-weight: 500; font-size: 24px;" fill="#18181b">L</text><text x="330" y="619.6" text-anchor="middle" dy="0.05em" style="font-family: degular-mono, sans-serif; font-weight: 500; font-size: 24px;" fill="#18181b">A</text><text x="330" y="549.6" text-anchor="middle" dy="0.05em" style="font-family: degular-mono, sans-serif; font-weight: 500; font-size: 24px;" fill="#18181b">B</text></g>
+            </svg>

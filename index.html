@@ -6,11 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SKIP LAB - Generative Logo Designer</title>
   <!-- Google Fonts for premium typography -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesque:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap"
-    rel="stylesheet">
+  <link rel="stylesheet" href="https://use.typekit.net/zyg2zdg.css">
   <!-- Lucide Icons for premium visual icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <link rel="stylesheet" href="styles.css">
@@ -582,10 +578,31 @@
           <div class="control-group">
             <label for="select-font">Typography Font</label>
             <select id="select-font">
-              <option value="'Outfit', sans-serif" selected>Outfit</option>
-              <option value="'Space Grotesque', sans-serif">Space Grotesque</option>
-              <option value="'Inter', sans-serif">Inter</option>
-              <option value="'Fira Code', monospace">Fira Code (Monospace)</option>
+              <option value="'degular-mono', sans-serif" selected>Degular Mono</option>
+              <option value="'calling-code', sans-serif">Calling Code</option>
+              <option value="'snaga-unicase-display', sans-serif">Snaga Unicase Display</option>
+              <option value="'config-mono-vf', sans-serif">Config Mono VF</option>
+              <option value="'bd-terminal-vf', sans-serif">BD Terminal VF</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label for="select-text-transform">Text Case</label>
+            <select id="select-text-transform">
+              <option value="uppercase" selected>Uppercase</option>
+              <option value="lowercase">Lowercase</option>
+              <option value="original">Original</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label for="select-font-weight">Font Weight</label>
+            <select id="select-font-weight">
+              <option value="300">Light (300)</option>
+              <option value="400">Regular (400)</option>
+              <option value="500" selected>Medium (500)</option>
+              <option value="600">Semi-Bold (600)</option>
+              <option value="700">Bold (700)</option>
             </select>
           </div>
 
